@@ -173,7 +173,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 
 <!-- FAVS -->
 <div id="s-favs" class="screen">
-  <div class="topbar"><span class="topbar-icon">⭐</span><h1>Favorites</h1><button class="tbtn primary" onclick="openForm(null)">+ Add</button></div>
+  <div class="topbar"><span class="topbar-icon">⭐</span><h1>Favorites</h1><button class="tbtn primary" onclick="openForm(null, undefined, true)">+ Add</button></div>
   <div class="sb" id="favs-list"><div class="empty">Star a food while logging<br>to save it here</div></div>
   <div class="nav" id="nav-favs">
     <button class="nb" onclick="switchTab('log')"><svg><use href="#ico-log"/></svg>Today</button>
@@ -274,7 +274,7 @@ body{display:flex;justify-content:center;min-height:100vh}
       <div class="field"><label for="fi-cals">Cal per serving</label><input type="number" id="fi-cals" placeholder="0" min="0" step="1"></div>
       <div class="field"><label for="fi-prot">Protein per serving (g)</label><input type="number" id="fi-prot" placeholder="0" min="0" step="0.1"></div>
     </div>
-    <div class="frow"><input type="checkbox" id="fi-fav"><label for="fi-fav">Save to favorites</label></div>
+    <div class="frow" id="fav-check-row"><input type="checkbox" id="fi-fav"><label for="fi-fav">Save to favorites</label></div>
   </div>
   <div class="fa">
     <button class="btn" onclick="closeForm()">Cancel</button>
@@ -444,18 +444,23 @@ function switchTab(tab){
 }
 
 // ── Form ──────────────────────────────────────────────
-function openForm(favIdx, entryIdx){
+function openForm(favIdx, entryIdx, favOnly){
   editingIndex = entryIdx !== undefined ? entryIdx : null;
   const fav = favIdx !== null ? favorites[favIdx] : null;
   const entry = editingIndex !== null ? entries[editingIndex] : null;
   const src = entry || fav;
-  document.getElementById('form-title').textContent = entry ? 'Edit entry' : (fav ? 'Log from favorite' : 'Log food');
+  const isFavOnly = !!favOnly;
+  document.getElementById('form-title').textContent = isFavOnly ? 'Add to favorites' : (entry ? 'Edit entry' : (fav ? 'Log from favorite' : 'Log food'));
   document.getElementById('fi-food').value = src ? src.name : '';
   document.getElementById('fi-cals').value = entry ? Math.round(entry.cals / (entry.qty||1)) : (src ? Math.round(src.cals) : '');
   document.getElementById('fi-prot').value = entry ? (entry.prot / (entry.qty||1)).toFixed(1) : (src ? src.prot.toFixed(1) : '');
   document.getElementById('fi-qty').value = entry ? (entry.qty||1) : 1;
   document.getElementById('fi-unit').value = src ? (src.unit||'') : '';
-  document.getElementById('fi-fav').checked = !!fav || !!entry;
+  document.getElementById('fi-fav').checked = isFavOnly ? true : (!!fav || !!entry);
+  // Show/hide fav checkbox row and update button label
+  document.getElementById('fav-check-row').style.display = isFavOnly ? 'none' : 'flex';
+  document.getElementById('log-btn').textContent = isFavOnly ? '★ Save to favorites' : '✓ Log it';
+  document.getElementById('log-btn').dataset.favOnly = isFavOnly ? '1' : '';
   baseCal=null; baseProt=null;
   Object.values(TABS).forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
@@ -482,14 +487,25 @@ async function logEntry(){
   const qty=parseFloat(document.getElementById('fi-qty').value)||1;
   const unit=document.getElementById('fi-unit').value.trim();
   const saveFav=document.getElementById('fi-fav').checked;
+  const favOnly=document.getElementById('log-btn').dataset.favOnly==='1';
   if(!name){document.getElementById('fi-food').focus();return;}
   const btn=document.getElementById('log-btn');
   btn.disabled=true;btn.textContent='Saving…';
+
+  if(favOnly){
+    // Just save to favorites, no log entry
+    if(!favorites.find(f=>f.name.toLowerCase()===name.toLowerCase()))
+      favorites.push({name,cals,prot,unit});
+    persist();renderFavs();
+    btn.disabled=false;
+    closeForm();
+    return;
+  }
+
   if(saveFav&&!favorites.find(f=>f.name.toLowerCase()===name.toLowerCase()))
-    favorites.push({name, cals, prot, unit});
-  // Scale calories and protein by quantity
-  const scaledCals = cals * qty;
-  const scaledProt = prot * qty;
+    favorites.push({name,cals,prot,unit});
+  const scaledCals=cals*qty;
+  const scaledProt=prot*qty;
   if(editingIndex!==null){
     entries[editingIndex]={...entries[editingIndex],name,cals:scaledCals,prot:scaledProt,qty,unit};
     editingIndex=null;
