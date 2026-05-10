@@ -476,9 +476,11 @@ function openForm(favIdx, entryIdx){
 function stepQty(dir){
   const input=document.getElementById('fi-qty');
   const current=parseFloat(input.value)||1;
-  const next=Math.max(0.5,Math.round((current+dir)*2)/2); // steps of 0.5
+  const next=Math.max(0.5,Math.round((current+dir)*2)/2);
   input.value=next;
 }
+
+function closeForm(){
   document.getElementById('s-form').classList.remove('active');
   switchTab(prevTab||'log');
 }
