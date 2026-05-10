@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Calorie Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calories">
+<meta name="theme-color" content="#1E1D1A">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -25,22 +29,38 @@ body{display:flex;justify-content:center;min-height:100vh}
 .app{width:100%;max-width:430px;min-height:100vh;background:var(--surface);display:flex;flex-direction:column}
 .screen{display:none;flex-direction:column;flex:1;overflow:hidden}
 .screen.active{display:flex}
-.topbar{display:flex;align-items:center;gap:10px;padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
 .topbar-icon{font-size:20px}
 .topbar h1{flex:1;font-size:16px;font-weight:500}
 .tbtn{display:flex;align-items:center;gap:5px;padding:7px 13px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);cursor:pointer;font-weight:500}
 .tbtn.primary{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-text)}
-.nav{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+/* Day nav */
+.daynav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.daynav-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:22px;padding:4px 8px;border-radius:6px;line-height:1}
+.daynav-btn:hover{color:var(--text);background:var(--surface2)}
+.daynav-btn:disabled{opacity:.2;cursor:default}
+.daynav-label{font-size:14px;font-weight:500;color:var(--text);text-align:center}
+.daynav-sub{font-size:11px;color:var(--text3);text-align:center;margin-top:1px}
+/* Quick favs strip */
+.qfavs{display:flex;gap:8px;padding:10px 20px;overflow-x:auto;flex-shrink:0;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.qfavs::-webkit-scrollbar{display:none}
+.qfav{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;flex-shrink:0;min-width:64px;max-width:90px}
+.qfav:active{background:var(--accent-bg);border-color:var(--accent)}
+.qfav-name{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center}
+.qfav-cal{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.qfavs-empty{font-size:12px;color:var(--text3);padding:10px 20px;flex-shrink:0;border-bottom:1px solid var(--border)}
+/* Nav */
+.nav{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface);position:sticky;bottom:0;z-index:10}
 .nb{flex:1;padding:10px 4px 12px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-family:'DM Sans',sans-serif;color:var(--text3)}
 .nb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .nb.active{color:var(--accent)}
 .sb{flex:1;overflow-y:auto;padding:16px 20px;-webkit-overflow-scrolling:touch}
-.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 20px 10px;flex-shrink:0}
-.sc{background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px}
-.sl{font-size:11px;color:var(--text3);margin-bottom:3px}
-.sv{font-size:24px;font-weight:500;font-family:'DM Mono',monospace}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 20px 8px;flex-shrink:0}
+.sc{background:var(--surface2);border-radius:var(--r-sm);padding:10px 14px}
+.sl{font-size:11px;color:var(--text3);margin-bottom:2px}
+.sv{font-size:22px;font-weight:500;font-family:'DM Mono',monospace}
 .ss{font-size:11px;color:var(--text3);margin-top:2px}
-.gbw{padding:0 20px 14px;flex-shrink:0}
+.gbw{padding:0 20px 10px;flex-shrink:0}
 .gbm{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:6px}
 .gbb{height:5px;background:var(--surface2);border-radius:99px;overflow:hidden}
 .gbf{height:100%;border-radius:99px;background:var(--accent);transition:width .5s}
@@ -53,20 +73,23 @@ body{display:flex;justify-content:center;min-height:100vh}
 .ec{font-size:14px;font-weight:500;font-family:'DM Mono',monospace}
 .ep{font-size:11px;color:var(--text3);margin-top:1px}
 .ib{background:none;border:none;cursor:pointer;color:var(--text3);padding:5px;font-size:16px;line-height:1;border-radius:6px;flex-shrink:0}
-.ib:hover{color:var(--danger);background:var(--danger-bg)}
-.empty{color:var(--text3);font-size:14px;text-align:center;padding:3rem 0;line-height:1.7}
+.ib:hover,.ib:active{color:var(--danger);background:var(--danger-bg)}
+.empty{color:var(--text3);font-size:14px;text-align:center;padding:2.5rem 0;line-height:1.7}
+/* Favs screen */
 .fr{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer}
 .fstar{color:var(--amber);font-size:16px;flex-shrink:0}
 .fi{flex:1;min-width:0}
 .fn{font-size:14px;font-weight:500}
 .fd{font-size:11px;color:var(--text3);margin-top:2px}
-.fr:hover .fn{color:var(--accent)}
+.fr:active .fn{color:var(--accent)}
+/* Stats */
 .ptog{display:flex;gap:6px;padding:14px 20px 0;flex-shrink:0}
 .pb{padding:5px 14px;font-size:12px;font-family:'DM Sans',sans-serif;border-radius:99px;cursor:pointer;font-weight:500;background:var(--surface2);border:1px solid var(--border);color:var(--text2)}
 .pb.active{background:var(--accent-bg);color:var(--accent-text);border-color:var(--accent)}
 .ca{padding:14px 20px;flex-shrink:0}
 .bc{display:flex;align-items:flex-end;gap:3px;height:90px;border-bottom:1px solid var(--border);margin-bottom:8px}
-.bc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.bc-col:hover .bar{opacity:.8}
 .bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;background:var(--accent)}
 .bar.over{background:var(--danger)}
 .bar.emp{opacity:.15}
@@ -76,6 +99,14 @@ body{display:flex;justify-content:center;min-height:100vh}
 .ar{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
 .al{font-size:13px;color:var(--text2)}
 .av{font-size:14px;font-weight:500;font-family:'DM Mono',monospace}
+/* History list in stats */
+.hist-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;gap:10px}
+.hist-date{font-size:13px;font-weight:500;color:var(--text);width:80px;flex-shrink:0}
+.hist-cals{font-size:14px;font-family:'DM Mono',monospace;font-weight:500;flex:1}
+.hist-cals.over{color:var(--danger)}
+.hist-cals.under{color:var(--accent)}
+.hist-prot{font-size:11px;color:var(--text3)}
+/* Form */
 .fb{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
 .field{display:flex;flex-direction:column;gap:5px}
 .field label{font-size:12px;color:var(--text2);font-weight:500}
@@ -92,10 +123,11 @@ body{display:flex;justify-content:center;min-height:100vh}
 .frow input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
 .frow label{font-size:13px;color:var(--text2);cursor:pointer}
 .fhint{font-size:11px;color:var(--text3);line-height:1.5}
-.fa{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0}
+.fa{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0;position:sticky;bottom:0;background:var(--surface);z-index:10}
 .btn{padding:11px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .btn.primary{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-text)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
+/* Settings */
 .sgrp{margin-bottom:24px}
 .srow{display:flex;align-items:center;gap:12px;background:var(--surface2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:8px;border:1px solid var(--border)}
 .srow label{font-size:13px;color:var(--text2);flex:1}
@@ -108,7 +140,6 @@ body{display:flex;justify-content:center;min-height:100vh}
 <body>
 <div class="app">
 
-<!-- NAV SVGs reused inline -->
 <svg style="display:none">
   <symbol id="ico-log" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
   <symbol id="ico-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
@@ -118,9 +149,25 @@ body{display:flex;justify-content:center;min-height:100vh}
 
 <!-- LOG -->
 <div id="s-log" class="screen active">
-  <div class="topbar"><span class="topbar-icon">🥗</span><h1 id="log-date">Today</h1><button class="tbtn primary" onclick="openForm(null)">+ Log food</button></div>
+  <div class="topbar">
+    <span class="topbar-icon">🥗</span>
+    <h1>Calorie Tracker</h1>
+    <button class="tbtn primary" onclick="openForm(null)">+ Log food</button>
+  </div>
+  <!-- Day navigation -->
+  <div class="daynav">
+    <button class="daynav-btn" id="day-prev" onclick="changeDay(-1)">‹</button>
+    <div>
+      <div class="daynav-label" id="day-label">Today</div>
+      <div class="daynav-sub" id="day-sub"></div>
+    </div>
+    <button class="daynav-btn" id="day-next" onclick="changeDay(1)" disabled>›</button>
+  </div>
+  <!-- Quick favorites strip -->
+  <div id="qfavs-wrap"></div>
+  <!-- Stats -->
   <div class="sg">
-    <div class="sc"><div class="sl">Calories</div><div class="sv" id="t-cals">0</div><div class="ss">kcal today</div></div>
+    <div class="sc"><div class="sl">Calories</div><div class="sv" id="t-cals">0</div><div class="ss">kcal</div></div>
     <div class="sc"><div class="sl">Protein</div><div class="sv" id="t-prot">0g</div><div class="ss">today</div></div>
   </div>
   <div class="gbw">
@@ -169,6 +216,8 @@ body{display:flex;justify-content:center;min-height:100vh}
     <div class="ar"><span class="al">Days tracked</span><span class="av" id="days-tracked">—</span></div>
     <div class="ar"><span class="al">Days at or under goal</span><span class="av" id="days-on-goal">—</span></div>
     <div class="ar"><span class="al">Best day (fewest cals)</span><span class="av" id="best-day">—</span></div>
+    <div class="sec" style="margin-top:20px">Day by day</div>
+    <div id="hist-list"></div>
   </div>
   <div class="nav" id="nav-stats">
     <button class="nb" onclick="switchTab('log')"><svg><use href="#ico-log"/></svg>Today</button>
@@ -189,12 +238,12 @@ body{display:flex;justify-content:center;min-height:100vh}
     </div>
     <div class="sgrp">
       <div class="sec">Data</div>
-      <p class="snote">Entries and favorites are saved in your browser and persist across sessions. Entries also sync to your Notion Calorie Tracking database.</p>
-      <button class="dbtn" onclick="clearSession()">Clear all session entries</button>
+      <p class="snote">All entries and favorites are saved in your browser and persist across sessions on this device.</p>
+      <button class="dbtn" onclick="clearSession()">Clear all entries</button>
     </div>
     <div class="sgrp">
       <div class="sec">Food lookup</div>
-      <p class="snote">Type any food name to search 200+ common foods. Select a match to auto-fill calories and protein. Always adjust for your actual portion size.</p>
+      <p class="snote">Type any food name when logging to search 200+ common foods and auto-fill calories and protein.</p>
     </div>
   </div>
   <div class="nav" id="nav-settings">
@@ -227,7 +276,7 @@ body{display:flex;justify-content:center;min-height:100vh}
       <div class="field"><label for="fi-prot">Protein (g)</label><input type="number" id="fi-prot" placeholder="0" min="0" step="0.1"></div>
     </div>
     <div class="frow"><input type="checkbox" id="fi-fav"><label for="fi-fav">Save to favorites</label></div>
-    <p class="fhint">Select a suggestion or type and fill in manually. Always edit to match your actual portion.</p>
+    <p class="fhint">Select a suggestion or enter manually. Always adjust to match your actual portion.</p>
   </div>
   <div class="fa">
     <button class="btn" onclick="closeForm()">Cancel</button>
@@ -237,7 +286,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 
 </div>
 <script>
-// ── Nutrition DB: [name, cal, protein_g, serving_label] ──
+// ── Food DB ───────────────────────────────────────────
 const FOODS=[
   ["chicken breast",165,31,"100g cooked"],["chicken thigh",209,26,"100g cooked"],
   ["ground beef 80%",254,17,"100g cooked"],["ground beef 93%",218,22,"100g cooked"],
@@ -299,6 +348,7 @@ const FOODS=[
   ["cola soda",140,0,"355ml / 12oz can"],["diet soda",0,0,"355ml / 12oz can"],
   ["beer regular",153,1,"355ml / 12oz"],["beer light",103,1,"355ml / 12oz"],
   ["modelo",210,2,"355ml / 12oz"],["modelo 22oz",410,3,"650ml / 22oz"],
+  ["pbr",153,1,"355ml / 12oz"],["pbr 16oz",198,2,"473ml / 16oz"],
   ["corona",148,1,"355ml / 12oz"],["bud light",110,1,"355ml / 12oz"],
   ["wine red",125,0,"148ml / 5oz"],["wine white",121,0,"148ml / 5oz"],
   ["vodka",97,0,"44ml / 1.5oz shot"],["whiskey",97,0,"44ml / 1.5oz shot"],
@@ -320,9 +370,10 @@ const FOODS=[
 ];
 
 // ── State ──────────────────────────────────────────────
-const KEY="ct_v2", NOTION_DS="fa1f2e93-0805-4441-aa65-84af22af194e";
+const KEY="ct_v3";
 let entries=[],favorites=[],goal=2000,pgoal=150;
 let period='week',prevTab='log',baseCal=null,baseProt=null;
+let viewingDate=todayISO(); // which day the log screen shows
 
 function persist(){try{localStorage.setItem(KEY,JSON.stringify({entries,favorites,goal,pgoal}));}catch(e){}}
 function hydrate(){
@@ -334,8 +385,28 @@ function hydrate(){
     document.getElementById('pgoal-input').value=pgoal;
   }catch(e){}
 }
+
 function todayISO(){return new Date().toISOString().split('T')[0];}
-document.getElementById('log-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+function offsetDate(iso,days){
+  const d=new Date(iso+'T12:00');
+  d.setDate(d.getDate()+days);
+  return d.toISOString().split('T')[0];
+}
+
+function formatDateLabel(iso){
+  const today=todayISO();
+  const yesterday=offsetDate(today,-1);
+  if(iso===today) return 'Today';
+  if(iso===yesterday) return 'Yesterday';
+  return new Date(iso+'T12:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+}
+
+function formatDateSub(iso){
+  const today=todayISO();
+  if(iso===today) return new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  return new Date(iso+'T12:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+}
 
 function saveGoal(){
   goal=parseInt(document.getElementById('goal-input').value)||2000;
@@ -343,13 +414,29 @@ function saveGoal(){
   persist();renderLog();renderStats();
 }
 
+// ── Day navigation ────────────────────────────────────
+function changeDay(dir){
+  viewingDate=offsetDate(viewingDate,dir);
+  renderLog();
+}
+
+function jumpToDate(iso){
+  viewingDate=iso;
+  switchTab('log');
+  renderLog();
+}
+
 // ── Tabs ──────────────────────────────────────────────
+const TABS={log:'s-log',favs:'s-favs',stats:'s-stats',settings:'s-settings'};
+const NAVS={
+  log:'nav-log',favs:'nav-favs',stats:'nav-stats',settings:'nav-settings'
+};
 function switchTab(tab){
-  ['log','favs','stats','settings'].forEach(t=>{
-    document.getElementById('s-'+t).classList.toggle('active',t===tab);
-    document.getElementById('nav-'+t).querySelectorAll('.nb').forEach((btn,i)=>{
-      const labels=['log','favs','stats','settings'];
-      btn.classList.toggle('active',labels[i]===tab);
+  Object.values(TABS).forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById(TABS[tab]).classList.add('active');
+  Object.keys(NAVS).forEach(t=>{
+    document.getElementById(NAVS[t]).querySelectorAll('.nb').forEach((btn,i)=>{
+      btn.classList.toggle('active',['log','favs','stats','settings'][i]===tab);
     });
   });
   if(tab==='stats')renderStats();
@@ -380,7 +467,7 @@ function onFoodType(val){
   }
   hint.textContent='';
   box.style.display='block';
-  box.innerHTML=hits.map(f=>`<div class="si" onclick="selectFood(${JSON.stringify(f[0])},${f[1]},${f[2]},${JSON.stringify(f[3])})"><span>${f[0]}</span><span class="sm">${f[1]} kcal · ${f[2]}g protein</span></div>`).join('');
+  box.innerHTML=hits.map(f=>`<div class="si" onclick="selectFood(${JSON.stringify(f[0])},${f[1]},${f[2]},${JSON.stringify(f[3])})"><span>${f[0]}</span><span class="sm">${f[1]} kcal · ${f[2]}g</span></div>`).join('');
 }
 
 function selectFood(name,cals,prot,serving){
@@ -414,7 +501,7 @@ function openForm(favIdx){
   document.getElementById('sugs').style.display='none';
   document.getElementById('fi-hint').textContent='';
   baseCal=fav?fav.baseCal:null;baseProt=fav?fav.baseProt:null;
-  ['log','favs','stats','settings'].forEach(t=>document.getElementById('s-'+t).classList.remove('active'));
+  Object.values(TABS).forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
   setTimeout(()=>document.getElementById('fi-food').focus(),60);
 }
@@ -437,28 +524,39 @@ async function logEntry(){
   btn.disabled=true;btn.textContent='Saving…';
   if(saveFav&&!favorites.find(f=>f.name.toLowerCase()===name.toLowerCase()))
     favorites.push({name,cals,prot,qty,unit,baseCal,baseProt});
-  const today=todayISO();
-  try{
-    await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:100,
-        mcp_servers:[{type:"url",url:"https://mcp.notion.com/mcp",name:"notion"}],
-        system:`Notion assistant. Create a page in data source '${NOTION_DS}'. Properties: Food (title), Calories (number), Protein (number), Quantity (number), Date (ISO date). Reply only: DONE`,
-        messages:[{role:"user",content:`Log: Food="${name}", Calories=${cals}, Protein=${prot}, Quantity=${qty}, Date=${today}`}]
-      })
-    });
-  }catch(e){}
-  entries.push({name,cals,prot,qty,unit,date:today});
-  persist();renderLog();renderFavs();
+  entries.push({name,cals,prot,qty,unit,date:viewingDate});
+  persist();renderLog();renderFavs();renderQFavs();
   btn.disabled=false;btn.innerHTML='✓ Log it';
   closeForm();
+}
+
+// ── Render: Quick favorites strip ─────────────────────
+function renderQFavs(){
+  const wrap=document.getElementById('qfavs-wrap');
+  if(!favorites.length){
+    wrap.innerHTML='<div class="qfavs-empty">⭐ Star foods while logging to add quick-access buttons here</div>';
+    return;
+  }
+  wrap.innerHTML='<div class="qfavs">'+
+    favorites.map((f,i)=>`<div class="qfav" onclick="quickLog(${i})"><div class="qfav-name">${f.name}</div><div class="qfav-cal">${Math.round(f.cals)} kcal</div></div>`).join('')+
+  '</div>';
+}
+
+function quickLog(favIdx){
+  const f=favorites[favIdx];
+  entries.push({name:f.name,cals:f.cals,prot:f.prot,qty:f.qty||1,unit:f.unit||'',date:viewingDate});
+  persist();renderLog();
 }
 
 // ── Render: Log ───────────────────────────────────────
 function renderLog(){
   const today=todayISO();
-  const te=entries.filter(e=>e.date===today);
+  // Update day nav
+  document.getElementById('day-label').textContent=formatDateLabel(viewingDate);
+  document.getElementById('day-sub').textContent=viewingDate===today?'':formatDateSub(viewingDate);
+  document.getElementById('day-next').disabled=viewingDate>=today;
+
+  const te=entries.filter(e=>e.date===viewingDate);
   const tc=te.reduce((s,e)=>s+e.cals,0);
   const tp=te.reduce((s,e)=>s+e.prot,0);
   document.getElementById('t-cals').textContent=Math.round(tc);
@@ -469,8 +567,13 @@ function renderLog(){
   bar.style.background=tc>goal?'var(--danger)':'var(--accent)';
   document.getElementById('goal-left').textContent=`${pct}% of ${goal} kcal goal`;
   document.getElementById('goal-right').textContent=tc<=goal?`${Math.round(goal-tc)} remaining`:`${Math.round(tc-goal)} over`;
+
   const list=document.getElementById('today-list');
-  if(!te.length){list.innerHTML='<div class="empty">No entries yet<br>Tap "Log food" to start</div>';return;}
+  if(!te.length){
+    const msg=viewingDate===today?'No entries yet<br>Tap "Log food" to start':'No entries for this day';
+    list.innerHTML=`<div class="empty">${msg}</div>`;
+    return;
+  }
   list.innerHTML=te.map(e=>{
     const ri=entries.lastIndexOf(e);
     const sub=(e.qty!==1||e.unit)?`${e.qty}${e.unit?' '+e.unit:''}`:'' ;
@@ -486,7 +589,7 @@ function renderFavs(){
   list.innerHTML='<div class="sec">Tap to log instantly</div>'+
     favorites.map((f,i)=>`<div class="fr" onclick="openForm(${i})"><span class="fstar">★</span><div class="fi"><div class="fn">${f.name}</div><div class="fd">${Math.round(f.cals)} kcal · ${f.prot.toFixed(1)}g protein${f.unit?' · per '+f.unit:''}</div></div><button class="ib" onclick="event.stopPropagation();rmFav(${i})" aria-label="Remove">✕</button></div>`).join('');
 }
-function rmFav(i){favorites.splice(i,1);persist();renderFavs();}
+function rmFav(i){favorites.splice(i,1);persist();renderFavs();renderQFavs();}
 
 // ── Render: Stats ─────────────────────────────────────
 function setPeriod(p){
@@ -495,6 +598,7 @@ function setPeriod(p){
   document.getElementById('pb-month').classList.toggle('active',p==='month');
   renderStats();
 }
+
 function renderStats(){
   const today=new Date();let days=[];
   if(period==='week'){
@@ -514,6 +618,8 @@ function renderStats(){
   document.getElementById('days-tracked').textContent=tr.length||'—';
   document.getElementById('days-on-goal').textContent=tr.length?`${og} / ${tr.length}`:'—';
   document.getElementById('best-day').textContent=best?`${Math.round(best.cals)} kcal (${best.date.slice(5)})`:'—';
+
+  // Bar chart
   const maxC=Math.max(goal,...dd.map(d=>d.cals),1);
   const chart=document.getElementById('bar-chart');
   if(period==='week'){
@@ -521,23 +627,42 @@ function renderStats(){
       const h=Math.round((d.cals/maxC)*84);
       const lbl=new Date(d.date+'T12:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2);
       const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar emp';
-      return`<div class="bc-col"><div class="${cls}" style="height:${Math.max(h,2)}px"></div><span class="blbl">${lbl}</span></div>`;
+      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px"></div><span class="blbl">${lbl}</span></div>`;
     }).join('');
   }else{
     chart.innerHTML=dd.map(d=>{
       const h=Math.round((d.cals/maxC)*84);
       const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar emp';
-      return`<div class="bc-col"><div class="${cls}" style="height:${Math.max(h,2)}px"></div></div>`;
+      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px"></div></div>`;
     }).join('');
   }
+
+  // Day-by-day history list (most recent first, only logged days)
+  const hist=document.getElementById('hist-list');
+  const logged=[...tr].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!logged.length){hist.innerHTML='<div class="empty" style="padding:1rem 0">No days logged yet</div>';return;}
+  hist.innerHTML=logged.map(d=>{
+    const lbl=formatDateLabel(d.date);
+    const calCls=d.cals>goal?'hist-cals over':'hist-cals under';
+    return`<div class="hist-row" onclick="jumpToDate('${d.date}')">
+      <div class="hist-date">${lbl}</div>
+      <div>
+        <div class="${calCls}">${Math.round(d.cals)} kcal</div>
+        <div class="hist-prot">${d.prot.toFixed(1)}g protein</div>
+      </div>
+      <span style="color:var(--text3);font-size:18px">›</span>
+    </div>`;
+  }).join('');
 }
 
 function clearSession(){
-  if(!confirm('Clear all session entries? Favorites and goals will be kept.'))return;
+  if(!confirm('Clear all entries? Favorites and goals will be kept.'))return;
   entries=[];persist();renderLog();renderStats();
 }
 
-hydrate();renderLog();renderFavs();renderStats();
+hydrate();
+viewingDate=todayISO();
+renderLog();renderFavs();renderQFavs();renderStats();
 </script>
 </body>
 </html>
