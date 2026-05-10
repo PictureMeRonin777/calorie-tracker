@@ -42,13 +42,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 .daynav-label{font-size:14px;font-weight:500;color:var(--text);text-align:center}
 .daynav-sub{font-size:11px;color:var(--text3);text-align:center;margin-top:1px}
 /* Quick favs strip */
-.qfavs{display:flex;gap:8px;padding:10px 20px;overflow-x:auto;flex-shrink:0;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.qfavs::-webkit-scrollbar{display:none}
-.qfav{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;flex-shrink:0;min-width:64px;max-width:90px}
-.qfav:active{background:var(--accent-bg);border-color:var(--accent)}
-.qfav-name{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center}
-.qfav-cal{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
-.qfavs-empty{font-size:12px;color:var(--text3);padding:10px 20px;flex-shrink:0;border-bottom:1px solid var(--border)}
+
 /* Nav */
 .nav{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface);padding-bottom:env(safe-area-inset-bottom,12px)}
 .nb{flex:1;padding:10px 4px 12px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-family:'DM Sans',sans-serif;color:var(--text3)}
@@ -158,8 +152,7 @@ body{display:flex;justify-content:center;min-height:100vh}
     </div>
     <button class="daynav-btn" id="day-next" onclick="changeDay(1)" disabled>›</button>
   </div>
-  <!-- Quick favorites strip -->
-  <div id="qfavs-wrap"></div>
+  <!-- Quick favs strip removed -->
   <!-- Stats -->
   <div class="sg">
     <div class="sc"><div class="sl">Calories</div><div class="sv" id="t-cals">0</div><div class="ss">kcal</div></div>
@@ -503,28 +496,13 @@ async function logEntry(){
   } else {
     entries.push({name,cals:scaledCals,prot:scaledProt,qty,unit,date:viewingDate});
   }
-  persist();renderLog();renderFavs();renderQFavs();
+  persist();renderLog();renderFavs();
   btn.disabled=false;btn.innerHTML='✓ Log it';
   closeForm();
 }
 
 // ── Render: Quick favorites strip ─────────────────────
-function renderQFavs(){
-  const wrap=document.getElementById('qfavs-wrap');
-  if(!favorites.length){
-    wrap.innerHTML='<div class="qfavs-empty">⭐ Star foods while logging to add quick-access buttons here</div>';
-    return;
-  }
-  wrap.innerHTML='<div class="qfavs">'+
-    favorites.map((f,i)=>`<div class="qfav" onclick="quickLog(${i})"><div class="qfav-name">${f.name}</div><div class="qfav-cal">${Math.round(f.cals)} kcal</div></div>`).join('')+
-  '</div>';
-}
 
-function quickLog(favIdx){
-  const f=favorites[favIdx];
-  entries.push({name:f.name,cals:f.cals,prot:f.prot,qty:1,unit:f.unit||'',date:viewingDate});
-  persist();renderLog();
-}
 
 // ── Render: Log ───────────────────────────────────────
 function renderLog(){
@@ -567,7 +545,7 @@ function renderFavs(){
   list.innerHTML='<div class="sec">Tap to log instantly</div>'+
     favorites.map((f,i)=>`<div class="fr" onclick="openForm(${i})"><span class="fstar">★</span><div class="fi"><div class="fn">${f.name}</div><div class="fd">${Math.round(f.cals)} kcal · ${f.prot.toFixed(1)}g protein${f.unit?' · per '+f.unit:''}</div></div><button class="ib" onclick="event.stopPropagation();rmFav(${i})" aria-label="Remove">✕</button></div>`).join('');
 }
-function rmFav(i){favorites.splice(i,1);persist();renderFavs();renderQFavs();}
+function rmFav(i){favorites.splice(i,1);persist();renderFavs();}
 
 // ── Render: Stats ─────────────────────────────────────
 function setPeriod(p){
@@ -675,7 +653,7 @@ function exportEmail(){
 
 hydrate();
 viewingDate=todayISO();
-renderLog();renderFavs();renderQFavs();renderStats();
+renderLog();renderFavs();renderStats();
 </script>
 </body>
 </html>
