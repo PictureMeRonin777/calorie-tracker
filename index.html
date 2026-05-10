@@ -50,7 +50,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 .qfav-cal{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
 .qfavs-empty{font-size:12px;color:var(--text3);padding:10px 20px;flex-shrink:0;border-bottom:1px solid var(--border)}
 /* Nav */
-.nav{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.nav{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface);padding-bottom:env(safe-area-inset-bottom,12px)}
 .nb{flex:1;padding:10px 4px 12px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-family:'DM Sans',sans-serif;color:var(--text3)}
 .nb svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .nb.active{color:var(--accent)}
@@ -118,7 +118,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 .frow input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
 .frow label{font-size:13px;color:var(--text2);cursor:pointer}
 .fhint{font-size:11px;color:var(--text3);line-height:1.5}
-.fa{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.fa{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 20px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)}
 .btn{padding:11px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .btn.primary{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-text)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -238,10 +238,13 @@ body{display:flex;justify-content:center;min-height:100vh}
     </div>
     <div class="sgrp">
       <div class="sec">Data</div>
-      <p class="snote">All entries and favorites are saved in your browser and persist across sessions on this device.</p>
-      <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="exportCSV()">⬇ Download CSV</button>
-      <div id="export-status" style="font-size:12px;color:var(--text3);text-align:center;min-height:16px;margin-bottom:8px"></div>
-      <button class="dbtn" onclick="clearSession()">Clear all entries</button>
+      <p class="snote">All entries and favorites are saved in your browser. Export regularly as a backup.</p>
+      <div class="field" style="margin-bottom:8px">
+        <label for="export-email">Your email</label>
+        <input type="email" id="export-email" placeholder="you@example.com">
+      </div>
+      <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="exportEmail()">✉ Email me my data</button>
+      <div id="export-status" style="font-size:12px;color:var(--text3);text-align:center;min-height:16px"></div>
     </div>
     <div class="sgrp">
       <div class="sec">Food lookup</div>
@@ -268,7 +271,14 @@ body{display:flex;justify-content:center;min-height:100vh}
       <input type="text" id="fi-food" placeholder="e.g. Modelo, chicken breast…" autocomplete="off">
     </div>
     <div class="r2">
-      <div class="field"><label for="fi-qty">Quantity</label><input type="number" id="fi-qty" value="1" min="0.1" step="0.1" oninput="onQtyChange()"></div>
+      <div class="field">
+        <label>Quantity</label>
+        <div style="display:flex;align-items:center;gap:0;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--surface2)">
+          <button type="button" onclick="stepQty(-1)" style="padding:10px 16px;font-size:20px;background:none;border:none;color:var(--text);cursor:pointer;flex-shrink:0;line-height:1">−</button>
+          <input type="number" id="fi-qty" value="1" min="0.5" step="0.5" oninput="onQtyChange()" style="text-align:center;border:none;background:transparent;flex:1;padding:10px 0;font-size:16px;font-family:'DM Mono',monospace;color:var(--text);outline:none;-moz-appearance:textfield">
+          <button type="button" onclick="stepQty(1)" style="padding:10px 16px;font-size:20px;background:none;border:none;color:var(--text);cursor:pointer;flex-shrink:0;line-height:1">+</button>
+        </div>
+      </div>
       <div class="field"><label for="fi-unit">Unit</label><input type="text" id="fi-unit" placeholder="serving, g, oz…"></div>
     </div>
     <div class="r2">
@@ -454,7 +464,7 @@ function openForm(favIdx, entryIdx){
   document.getElementById('fi-food').value = src ? src.name : '';
   document.getElementById('fi-cals').value = src ? Math.round(src.cals) : '';
   document.getElementById('fi-prot').value = src ? src.prot.toFixed(1) : '';
-  document.getElementById('fi-qty').value = src ? (src.qty||1) : 1;
+  document.getElementById('fi-qty').value = entry ? (entry.qty||1) : 1;
   document.getElementById('fi-unit').value = src ? (src.unit||'') : '';
   document.getElementById('fi-fav').checked = !!fav || !!entry;
   baseCal=null; baseProt=null;
@@ -463,7 +473,12 @@ function openForm(favIdx, entryIdx){
   setTimeout(()=>document.getElementById('fi-food').focus(),60);
 }
 
-function closeForm(){
+function stepQty(dir){
+  const input=document.getElementById('fi-qty');
+  const current=parseFloat(input.value)||1;
+  const next=Math.max(0.5,Math.round((current+dir)*2)/2); // steps of 0.5
+  input.value=next;
+}
   document.getElementById('s-form').classList.remove('active');
   switchTab(prevTab||'log');
 }
@@ -481,12 +496,14 @@ async function logEntry(){
   btn.disabled=true;btn.textContent='Saving…';
   if(saveFav&&!favorites.find(f=>f.name.toLowerCase()===name.toLowerCase()))
     favorites.push({name,cals,prot,qty,unit,baseCal,baseProt});
+  // Scale calories and protein by quantity
+  const scaledCals = cals * qty;
+  const scaledProt = prot * qty;
   if(editingIndex!==null){
-    // Update existing entry
-    entries[editingIndex]={...entries[editingIndex],name,cals,prot,qty,unit};
+    entries[editingIndex]={...entries[editingIndex],name,cals:scaledCals,prot:scaledProt,qty,unit};
     editingIndex=null;
   } else {
-    entries.push({name,cals,prot,qty,unit,date:viewingDate});
+    entries.push({name,cals:scaledCals,prot:scaledProt,qty,unit,date:viewingDate});
   }
   persist();renderLog();renderFavs();renderQFavs();
   btn.disabled=false;btn.innerHTML='✓ Log it';
@@ -631,22 +648,20 @@ function clearSession(){
   entries=[];persist();renderLog();renderStats();
 }
 
-function exportCSV(){
+function exportEmail(){
   const status=document.getElementById('export-status');
+  const email=document.getElementById('export-email').value.trim();
+  if(!email){status.textContent='Enter your email first.';return;}
   if(!entries.length){status.textContent='Nothing to export yet.';return;}
   const header='Date,Food,Calories,Protein,Quantity,Unit';
   const rows=entries
     .slice().sort((a,b)=>a.date.localeCompare(b.date))
     .map(e=>`${e.date},"${e.name}",${Math.round(e.cals)},${e.prot.toFixed(1)},${e.qty},"${e.unit||''}"`);
-  const csv=[header,...rows].join('\n');
-  const filename=`calorie-export-${todayISO()}.csv`;
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=filename;a.click();
-  URL.revokeObjectURL(url);
+  const body=`Here is your calorie tracker export as of ${todayISO()}:\n\n`+[header,...rows].join('\n');
+  const subject=`Calorie Tracker Export — ${todayISO()}`;
+  window.location.href=`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   status.style.color='var(--accent)';
-  status.textContent=`✓ Downloaded: ${filename}`;
+  status.textContent='✓ Opening your email app…';
 }
 
 hydrate();
