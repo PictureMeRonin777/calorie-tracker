@@ -239,11 +239,7 @@ body{display:flex;justify-content:center;min-height:100vh}
     <div class="sgrp">
       <div class="sec">Data</div>
       <p class="snote">All entries and favorites are saved in your browser. Export regularly as a backup.</p>
-      <div class="field" style="margin-bottom:8px">
-        <label for="export-email">Your email</label>
-        <input type="email" id="export-email" placeholder="you@example.com">
-      </div>
-      <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="exportEmail()">✉ Email me my data</button>
+      <button class="btn primary" style="width:100%;margin-bottom:8px" onclick="exportEmail()">⬆ Export CSV</button>
       <div id="export-status" style="font-size:12px;color:var(--text3);text-align:center;min-height:16px"></div>
     </div>
     <div class="sgrp">
@@ -462,8 +458,8 @@ function openForm(favIdx, entryIdx){
   const src = entry || fav;
   document.getElementById('form-title').textContent = entry ? 'Edit entry' : (fav ? 'Log from favorite' : 'Log food');
   document.getElementById('fi-food').value = src ? src.name : '';
-  document.getElementById('fi-cals').value = src ? Math.round(src.cals) : '';
-  document.getElementById('fi-prot').value = src ? src.prot.toFixed(1) : '';
+  document.getElementById('fi-cals').value = entry ? Math.round(entry.cals / (entry.qty||1)) : (src ? Math.round(src.cals) : '');
+  document.getElementById('fi-prot').value = entry ? (entry.prot / (entry.qty||1)).toFixed(1) : (src ? src.prot.toFixed(1) : '');
   document.getElementById('fi-qty').value = entry ? (entry.qty||1) : 1;
   document.getElementById('fi-unit').value = src ? (src.unit||'') : '';
   document.getElementById('fi-fav').checked = !!fav || !!entry;
@@ -652,18 +648,29 @@ function clearSession(){
 
 function exportEmail(){
   const status=document.getElementById('export-status');
-  const email=document.getElementById('export-email').value.trim();
-  if(!email){status.textContent='Enter your email first.';return;}
   if(!entries.length){status.textContent='Nothing to export yet.';return;}
   const header='Date,Food,Calories,Protein,Quantity,Unit';
   const rows=entries
     .slice().sort((a,b)=>a.date.localeCompare(b.date))
     .map(e=>`${e.date},"${e.name}",${Math.round(e.cals)},${e.prot.toFixed(1)},${e.qty},"${e.unit||''}"`);
-  const body=`Here is your calorie tracker export as of ${todayISO()}:\n\n`+[header,...rows].join('\n');
-  const subject=`Calorie Tracker Export — ${todayISO()}`;
-  window.location.href=`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  status.style.color='var(--accent)';
-  status.textContent='✓ Opening your email app…';
+  const csv=[header,...rows].join('\n');
+  const filename=`calorie-export-${todayISO()}.csv`;
+  // Use Web Share API if available (iOS share sheet), fallback to download
+  const blob=new Blob([csv],{type:'text/csv'});
+  const file=new File([blob],filename,{type:'text/csv'});
+  if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:filename})
+      .then(()=>{status.style.color='var(--accent)';status.textContent='✓ Shared successfully';})
+      .catch(()=>{status.textContent='Share cancelled';});
+  } else {
+    // Fallback: download
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;a.click();
+    URL.revokeObjectURL(url);
+    status.style.color='var(--accent)';
+    status.textContent=`✓ Downloaded: ${filename}`;
+  }
 }
 
 hydrate();
