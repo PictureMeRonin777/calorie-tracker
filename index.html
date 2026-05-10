@@ -198,7 +198,12 @@ body{display:flex;justify-content:center;min-height:100vh}
     <button class="pb" id="pb-month" onclick="setPeriod('month')">This month</button>
   </div>
   <div class="ca">
-    <div class="bc" id="bar-chart"></div>
+    <div style="position:relative">
+      <div class="bc" id="bar-chart"></div>
+      <div id="goal-line" style="position:absolute;left:0;right:0;border-top:1.5px dashed var(--accent);pointer-events:none;display:none">
+        <span id="goal-line-label" style="position:absolute;right:0;top:-16px;font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;background:var(--surface);padding:0 3px"></span>
+      </div>
+    </div>
     <div class="cleg">
       <span><span class="dot" style="background:var(--accent)"></span>Under goal</span>
       <span><span class="dot" style="background:var(--danger)"></span>Over goal</span>
@@ -578,6 +583,14 @@ function renderStats(){
   // Bar chart
   const maxC=Math.max(goal,...dd.map(d=>d.cals),1);
   const chart=document.getElementById('bar-chart');
+  // Goal line: position from bottom. Chart height is 90px (84px bars + 6px label space accounted separately)
+  const chartH=90;
+  const goalPx=Math.round((goal/maxC)*84); // same scale as bars
+  const goalLine=document.getElementById('goal-line');
+  const goalLineLbl=document.getElementById('goal-line-label');
+  goalLine.style.display='block';
+  goalLine.style.bottom=(goalPx+16)+'px'; // 16px offset for the day labels at bottom
+  goalLineLbl.textContent=goal.toLocaleString()+' kcal goal';
   if(period==='week'){
     chart.innerHTML=dd.map(d=>{
       const h=Math.round((d.cals/maxC)*84);
