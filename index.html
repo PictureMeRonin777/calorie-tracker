@@ -113,11 +113,6 @@ body{display:flex;justify-content:center;min-height:100vh}
 .field input{width:100%;padding:10px 12px;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);outline:none}
 .field input:focus{border-color:var(--accent)}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.sugs{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-top:-10px}
-.si{padding:10px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.si:last-child{border-bottom:none}
-.si:hover,.si:active{background:var(--surface2)}
-.sm{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
 .hint{font-size:11px;color:var(--text2);min-height:16px}
 .frow{display:flex;align-items:center;gap:10px}
 .frow input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
@@ -263,10 +258,8 @@ body{display:flex;justify-content:center;min-height:100vh}
   <div class="fb">
     <div class="field">
       <label for="fi-food">Food name</label>
-      <input type="text" id="fi-food" placeholder="e.g. chicken breast, banana, latte…" autocomplete="off" oninput="onFoodType(this.value)">
+      <input type="text" id="fi-food" placeholder="e.g. Modelo, chicken breast…" autocomplete="off">
     </div>
-    <div id="sugs" style="display:none" class="sugs"></div>
-    <div class="hint" id="fi-hint"></div>
     <div class="r2">
       <div class="field"><label for="fi-qty">Quantity</label><input type="number" id="fi-qty" value="1" min="0.1" step="0.1" oninput="onQtyChange()"></div>
       <div class="field"><label for="fi-unit">Unit</label><input type="text" id="fi-unit" placeholder="serving, g, oz…"></div>
@@ -276,7 +269,6 @@ body{display:flex;justify-content:center;min-height:100vh}
       <div class="field"><label for="fi-prot">Protein (g)</label><input type="number" id="fi-prot" placeholder="0" min="0" step="0.1"></div>
     </div>
     <div class="frow"><input type="checkbox" id="fi-fav"><label for="fi-fav">Save to favorites</label></div>
-    <p class="fhint">Select a suggestion or enter manually. Always adjust to match your actual portion.</p>
   </div>
   <div class="fa">
     <button class="btn" onclick="closeForm()">Cancel</button>
@@ -373,7 +365,8 @@ const FOODS=[
 const KEY="ct_v3";
 let entries=[],favorites=[],goal=2000,pgoal=150;
 let period='week',prevTab='log',baseCal=null,baseProt=null;
-let viewingDate=todayISO(); // which day the log screen shows
+let viewingDate=todayISO();
+let editingIndex=null; // index into entries[] when editing existing entry
 
 function persist(){try{localStorage.setItem(KEY,JSON.stringify({entries,favorites,goal,pgoal}));}catch(e){}}
 function hydrate(){
@@ -444,63 +437,20 @@ function switchTab(tab){
   prevTab=tab;
 }
 
-// ── Food search ───────────────────────────────────────
-function searchFoods(q){
-  if(!q||q.length<2)return[];
-  const words=q.toLowerCase().split(' ').filter(w=>w.length>1);
-  if(!words.length)return[];
-  return FOODS
-    .map(f=>{const s=words.filter(w=>f[0].includes(w)).length;return{f,s};})
-    .filter(x=>x.s>0)
-    .sort((a,b)=>b.s-a.s||a.f[0].length-b.f[0].length)
-    .slice(0,5).map(x=>x.f);
-}
-
-function onFoodType(val){
-  const hits=searchFoods(val);
-  const box=document.getElementById('sugs');
-  const hint=document.getElementById('fi-hint');
-  if(!hits.length){
-    box.style.display='none';
-    hint.textContent=val.length>2?'Not in database — enter calories manually':'';
-    return;
-  }
-  hint.textContent='';
-  box.style.display='block';
-  box.innerHTML=hits.map(f=>`<div class="si" onclick="selectFood(${JSON.stringify(f[0])},${f[1]},${f[2]},${JSON.stringify(f[3])})"><span>${f[0]}</span><span class="sm">${f[1]} kcal · ${f[2]}g</span></div>`).join('');
-}
-
-function selectFood(name,cals,prot,serving){
-  document.getElementById('fi-food').value=name;
-  baseCal=cals;baseProt=prot;
-  const qty=parseFloat(document.getElementById('fi-qty').value)||1;
-  document.getElementById('fi-cals').value=Math.round(cals*qty);
-  document.getElementById('fi-prot').value=(prot*qty).toFixed(1);
-  if(!document.getElementById('fi-unit').value)document.getElementById('fi-unit').value='serving';
-  document.getElementById('sugs').style.display='none';
-  document.getElementById('fi-hint').textContent='Per: '+serving+' — edit to match your portion';
-}
-
-function onQtyChange(){
-  if(baseCal==null)return;
-  const qty=parseFloat(document.getElementById('fi-qty').value)||1;
-  document.getElementById('fi-cals').value=Math.round(baseCal*qty);
-  document.getElementById('fi-prot').value=(baseProt*qty).toFixed(1);
-}
-
 // ── Form ──────────────────────────────────────────────
-function openForm(favIdx){
-  const fav=favIdx!==null?favorites[favIdx]:null;
-  document.getElementById('form-title').textContent=fav?'Log from favorite':'Log food';
-  document.getElementById('fi-food').value=fav?fav.name:'';
-  document.getElementById('fi-cals').value=fav?Math.round(fav.cals):'';
-  document.getElementById('fi-prot').value=fav?fav.prot.toFixed(1):'';
-  document.getElementById('fi-qty').value=fav?(fav.qty||1):1;
-  document.getElementById('fi-unit').value=fav?(fav.unit||''):'';
-  document.getElementById('fi-fav').checked=!!fav;
-  document.getElementById('sugs').style.display='none';
-  document.getElementById('fi-hint').textContent='';
-  baseCal=fav?fav.baseCal:null;baseProt=fav?fav.baseProt:null;
+function openForm(favIdx, entryIdx){
+  editingIndex = entryIdx !== undefined ? entryIdx : null;
+  const fav = favIdx !== null ? favorites[favIdx] : null;
+  const entry = editingIndex !== null ? entries[editingIndex] : null;
+  const src = entry || fav;
+  document.getElementById('form-title').textContent = entry ? 'Edit entry' : (fav ? 'Log from favorite' : 'Log food');
+  document.getElementById('fi-food').value = src ? src.name : '';
+  document.getElementById('fi-cals').value = src ? Math.round(src.cals) : '';
+  document.getElementById('fi-prot').value = src ? src.prot.toFixed(1) : '';
+  document.getElementById('fi-qty').value = src ? (src.qty||1) : 1;
+  document.getElementById('fi-unit').value = src ? (src.unit||'') : '';
+  document.getElementById('fi-fav').checked = !!fav || !!entry;
+  baseCal=null; baseProt=null;
   Object.values(TABS).forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
   setTimeout(()=>document.getElementById('fi-food').focus(),60);
@@ -524,7 +474,13 @@ async function logEntry(){
   btn.disabled=true;btn.textContent='Saving…';
   if(saveFav&&!favorites.find(f=>f.name.toLowerCase()===name.toLowerCase()))
     favorites.push({name,cals,prot,qty,unit,baseCal,baseProt});
-  entries.push({name,cals,prot,qty,unit,date:viewingDate});
+  if(editingIndex!==null){
+    // Update existing entry
+    entries[editingIndex]={...entries[editingIndex],name,cals,prot,qty,unit};
+    editingIndex=null;
+  } else {
+    entries.push({name,cals,prot,qty,unit,date:viewingDate});
+  }
   persist();renderLog();renderFavs();renderQFavs();
   btn.disabled=false;btn.innerHTML='✓ Log it';
   closeForm();
@@ -577,7 +533,7 @@ function renderLog(){
   list.innerHTML=te.map(e=>{
     const ri=entries.lastIndexOf(e);
     const sub=(e.qty!==1||e.unit)?`${e.qty}${e.unit?' '+e.unit:''}`:'' ;
-    return`<div class="er"><div class="ei"><div class="en">${e.name}</div>${sub?`<div class="esub">${sub}</div>`:''}</div><div class="eright"><div class="ec">${Math.round(e.cals)}</div><div class="ep">${e.prot.toFixed(1)}g protein</div></div><button class="ib" onclick="delEntry(${ri})" aria-label="Delete">✕</button></div>`;
+    return`<div class="er" onclick="openForm(null,${ri})" style="cursor:pointer"><div class="ei"><div class="en">${e.name}</div>${sub?`<div class="esub">${sub}</div>`:''}</div><div class="eright"><div class="ec">${Math.round(e.cals)}</div><div class="ep">${e.prot.toFixed(1)}g protein</div></div><button class="ib" onclick="event.stopPropagation();delEntry(${ri})" aria-label="Delete">✕</button></div>`;
   }).join('');
 }
 function delEntry(i){entries.splice(i,1);persist();renderLog();}
