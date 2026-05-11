@@ -191,15 +191,27 @@ body{display:flex;justify-content:center;min-height:100vh}
     <button class="pb" id="pb-month" onclick="setPeriod('month')">This month</button>
   </div>
   <div class="ca">
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Calories</div>
     <div style="position:relative">
       <div class="bc" id="bar-chart"></div>
       <div id="goal-line" style="position:absolute;left:0;right:0;border-top:1.5px dashed var(--accent);pointer-events:none;display:none">
         <span id="goal-line-label" style="position:absolute;right:0;top:-16px;font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;background:var(--surface);padding:0 3px"></span>
       </div>
     </div>
-    <div class="cleg">
+    <div class="cleg" style="margin-bottom:16px">
       <span><span class="dot" style="background:var(--accent)"></span>Under goal</span>
       <span><span class="dot" style="background:var(--danger)"></span>Over goal</span>
+    </div>
+    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Protein</div>
+    <div style="position:relative">
+      <div class="bc" id="prot-chart"></div>
+      <div id="prot-goal-line" style="position:absolute;left:0;right:0;border-top:1.5px dashed var(--amber);pointer-events:none;display:none">
+        <span id="prot-goal-label" style="position:absolute;right:0;top:-16px;font-size:10px;color:var(--amber);font-family:'DM Mono',monospace;background:var(--surface);padding:0 3px"></span>
+      </div>
+    </div>
+    <div class="cleg">
+      <span><span class="dot" style="background:var(--amber)"></span>Under protein goal</span>
+      <span><span class="dot" style="background:var(--danger)"></span>Over</span>
     </div>
   </div>
   <div class="sb">
@@ -627,16 +639,14 @@ function renderStats(){
   document.getElementById('days-on-goal').textContent=tr.length?`${og} / ${tr.length}`:'—';
   document.getElementById('best-day').textContent=best?`${Math.round(best.cals)} kcal (${best.date.slice(5)})`:'—';
 
-  // Bar chart
+  // Calorie bar chart
   const maxC=Math.max(goal,...dd.map(d=>d.cals),1);
   const chart=document.getElementById('bar-chart');
-  // Goal line: position from bottom. Chart height is 90px (84px bars + 6px label space accounted separately)
-  const chartH=90;
-  const goalPx=Math.round((goal/maxC)*84); // same scale as bars
+  const goalPx=Math.round((goal/maxC)*84);
   const goalLine=document.getElementById('goal-line');
   const goalLineLbl=document.getElementById('goal-line-label');
   goalLine.style.display='block';
-  goalLine.style.bottom=(goalPx+16)+'px'; // 16px offset for the day labels at bottom
+  goalLine.style.bottom=(goalPx+16)+'px';
   goalLineLbl.textContent=goal.toLocaleString()+' kcal goal';
   if(period==='week'){
     chart.innerHTML=dd.map(d=>{
@@ -650,6 +660,32 @@ function renderStats(){
       const h=Math.round((d.cals/maxC)*84);
       const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar emp';
       return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px"></div></div>`;
+    }).join('');
+  }
+
+  // Protein bar chart
+  const maxP=Math.max(pgoal,...dd.map(d=>d.prot),1);
+  const pchart=document.getElementById('prot-chart');
+  const pgoalPx=Math.round((pgoal/maxP)*84);
+  const pgoalLine=document.getElementById('prot-goal-line');
+  const pgoalLbl=document.getElementById('prot-goal-label');
+  pgoalLine.style.display='block';
+  pgoalLine.style.bottom=(pgoalPx+16)+'px';
+  pgoalLbl.textContent=pgoal+'g protein goal';
+  if(period==='week'){
+    pchart.innerHTML=dd.map(d=>{
+      const h=Math.round((d.prot/maxP)*84);
+      const lbl=new Date(d.date+'T12:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2);
+      const cls=d.logged?(d.prot>pgoal?'bar over':'bar'):'bar emp';
+      const barColor=d.logged&&d.prot<=pgoal?'background:var(--amber)':'';
+      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px;${barColor}"></div><span class="blbl">${lbl}</span></div>`;
+    }).join('');
+  }else{
+    pchart.innerHTML=dd.map(d=>{
+      const h=Math.round((d.prot/maxP)*84);
+      const cls=d.logged?(d.prot>pgoal?'bar over':'bar'):'bar emp';
+      const barColor=d.logged&&d.prot<=pgoal?'background:var(--amber)':'';
+      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px;${barColor}"></div></div>`;
     }).join('');
   }
 
