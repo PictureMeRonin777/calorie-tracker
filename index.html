@@ -82,7 +82,7 @@ body{display:flex;justify-content:center;min-height:100vh}
 .pb.active{background:var(--accent-bg);color:var(--accent-text);border-color:var(--accent)}
 .ca{padding:14px 20px;flex-shrink:0}
 .bc{display:flex;align-items:flex-end;gap:3px;height:90px;border-bottom:1px solid var(--border);margin-bottom:8px}
-.bc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.bc-col{flex:1;display:flex;align-items:flex-end;gap:2px;cursor:pointer;position:relative;padding-bottom:14px}
 .bc-col:hover .bar{opacity:.8}
 .bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;background:var(--accent)}
 .bar.over{background:var(--danger)}
@@ -191,27 +191,21 @@ body{display:flex;justify-content:center;min-height:100vh}
     <button class="pb" id="pb-month" onclick="setPeriod('month')">This month</button>
   </div>
   <div class="ca">
-    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Calories</div>
     <div style="position:relative">
       <div class="bc" id="bar-chart"></div>
+      <!-- Calorie goal line (green, left axis) -->
       <div id="goal-line" style="position:absolute;left:0;right:0;border-top:1.5px dashed var(--accent);pointer-events:none;display:none">
-        <span id="goal-line-label" style="position:absolute;right:0;top:-16px;font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;background:var(--surface);padding:0 3px"></span>
+        <span id="goal-line-label" style="position:absolute;left:0;top:-16px;font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;background:var(--surface);padding:0 3px"></span>
       </div>
-    </div>
-    <div class="cleg" style="margin-bottom:16px">
-      <span><span class="dot" style="background:var(--accent)"></span>Under goal</span>
-      <span><span class="dot" style="background:var(--danger)"></span>Over goal</span>
-    </div>
-    <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Protein</div>
-    <div style="position:relative">
-      <div class="bc" id="prot-chart"></div>
+      <!-- Protein goal line (amber, right axis) -->
       <div id="prot-goal-line" style="position:absolute;left:0;right:0;border-top:1.5px dashed var(--amber);pointer-events:none;display:none">
         <span id="prot-goal-label" style="position:absolute;right:0;top:-16px;font-size:10px;color:var(--amber);font-family:'DM Mono',monospace;background:var(--surface);padding:0 3px"></span>
       </div>
     </div>
     <div class="cleg">
-      <span><span class="dot" style="background:var(--amber)"></span>Under protein goal</span>
-      <span><span class="dot" style="background:var(--danger)"></span>Over</span>
+      <span><span class="dot" style="background:var(--accent)"></span>Calories</span>
+      <span><span class="dot" style="background:var(--amber)"></span>Protein</span>
+      <span><span class="dot" style="background:var(--danger)"></span>Over goal</span>
     </div>
   </div>
   <div class="sb">
@@ -639,55 +633,39 @@ function renderStats(){
   document.getElementById('days-on-goal').textContent=tr.length?`${og} / ${tr.length}`:'—';
   document.getElementById('best-day').textContent=best?`${Math.round(best.cals)} kcal (${best.date.slice(5)})`:'—';
 
-  // Calorie bar chart
+  // Combined dual-axis chart — calories (green) + protein (amber) side by side per day
   const maxC=Math.max(goal,...dd.map(d=>d.cals),1);
+  const maxP=Math.max(pgoal,...dd.map(d=>d.prot),1);
   const chart=document.getElementById('bar-chart');
+
+  // Calorie goal line (uses calorie scale)
   const goalPx=Math.round((goal/maxC)*84);
   const goalLine=document.getElementById('goal-line');
-  const goalLineLbl=document.getElementById('goal-line-label');
   goalLine.style.display='block';
   goalLine.style.bottom=(goalPx+16)+'px';
-  goalLineLbl.textContent=goal.toLocaleString()+' kcal goal';
-  if(period==='week'){
-    chart.innerHTML=dd.map(d=>{
-      const h=Math.round((d.cals/maxC)*84);
-      const lbl=new Date(d.date+'T12:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2);
-      const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar emp';
-      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px"></div><span class="blbl">${lbl}</span></div>`;
-    }).join('');
-  }else{
-    chart.innerHTML=dd.map(d=>{
-      const h=Math.round((d.cals/maxC)*84);
-      const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar emp';
-      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px"></div></div>`;
-    }).join('');
-  }
+  document.getElementById('goal-line-label').textContent=goal.toLocaleString()+' kcal';
 
-  // Protein bar chart
-  const maxP=Math.max(pgoal,...dd.map(d=>d.prot),1);
-  const pchart=document.getElementById('prot-chart');
+  // Protein goal line (uses protein scale — same pixel height as calorie goal for visual clarity)
   const pgoalPx=Math.round((pgoal/maxP)*84);
   const pgoalLine=document.getElementById('prot-goal-line');
-  const pgoalLbl=document.getElementById('prot-goal-label');
   pgoalLine.style.display='block';
   pgoalLine.style.bottom=(pgoalPx+16)+'px';
-  pgoalLbl.textContent=pgoal+'g protein goal';
-  if(period==='week'){
-    pchart.innerHTML=dd.map(d=>{
-      const h=Math.round((d.prot/maxP)*84);
-      const lbl=new Date(d.date+'T12:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2);
-      const cls=d.logged?(d.prot>pgoal?'bar over':'bar'):'bar emp';
-      const barColor=d.logged&&d.prot<=pgoal?'background:var(--amber)':'';
-      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px;${barColor}"></div><span class="blbl">${lbl}</span></div>`;
-    }).join('');
-  }else{
-    pchart.innerHTML=dd.map(d=>{
-      const h=Math.round((d.prot/maxP)*84);
-      const cls=d.logged?(d.prot>pgoal?'bar over':'bar'):'bar emp';
-      const barColor=d.logged&&d.prot<=pgoal?'background:var(--amber)':'';
-      return`<div class="bc-col" onclick="jumpToDate('${d.date}')"><div class="${cls}" style="height:${Math.max(h,2)}px;${barColor}"></div></div>`;
-    }).join('');
-  }
+  document.getElementById('prot-goal-label').textContent=pgoal+'g';
+
+  const showLabels=period==='week';
+  chart.innerHTML=dd.map(d=>{
+    const hC=Math.round((d.cals/maxC)*84);
+    const hP=Math.round((d.prot/maxP)*84);
+    const clsC=d.logged?(d.cals>goal?'bar over':'bar'):'bar emp';
+    const clsP=d.logged?(d.prot>pgoal?'bar over':'bar emp'):'bar emp';
+    const protColor=d.logged&&d.prot<=pgoal?'background:var(--amber)':'';
+    const lbl=showLabels?new Date(d.date+'T12:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2):'';
+    return`<div class="bc-col" onclick="jumpToDate('${d.date}')" style="flex-direction:row;align-items:flex-end;gap:2px;padding-bottom:${showLabels?'14':'0'}px;position:relative">
+      <div class="${clsC}" style="height:${Math.max(hC,2)}px;flex:1;border-radius:3px 3px 0 0"></div>
+      <div class="${clsP}" style="height:${Math.max(hP,2)}px;flex:1;border-radius:3px 3px 0 0;${protColor}"></div>
+      ${showLabels?`<span class="blbl" style="position:absolute;bottom:0;left:50%;transform:translateX(-50%)">${lbl}</span>`:''}
+    </div>`;
+  }).join('');
 
   // Day-by-day history list (most recent first, only logged days)
   const hist=document.getElementById('hist-list');
