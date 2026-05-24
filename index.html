@@ -448,6 +448,7 @@
 // ── State ──────────────────────────────────────────────
 const NOTION_DS = "fa1f2e93-0805-4441-aa65-84af22af194e";
 const STORE_KEY = "ct_data_v1";
+const LEGACY_STORE_KEYS = ["ct_v3"];
 
 let entries = [];
 let favorites = [];
@@ -462,9 +463,24 @@ let prevTab = 'log';
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify({entries, favorites, goal, pgoal})); } catch(e){}
 }
+function parseStoredData(key) {
+  try { return JSON.parse(localStorage.getItem(key)||'{}') || {}; } catch(e) { return {}; }
+}
+function hasStoredLogs(data) {
+  return (data.entries && data.entries.length) || (data.favorites && data.favorites.length);
+}
+function bestStoredData() {
+  const current = parseStoredData(STORE_KEY);
+  if(hasStoredLogs(current)) return current;
+  for(const key of LEGACY_STORE_KEYS) {
+    const legacy = parseStoredData(key);
+    if(hasStoredLogs(legacy)) return legacy;
+  }
+  return current;
+}
 function load() {
   try {
-    const d = JSON.parse(localStorage.getItem(STORE_KEY)||'{}');
+    const d = bestStoredData();
     entries = d.entries || [];
     favorites = (d.favorites || []).map(f => ({
       ...f,
@@ -474,6 +490,7 @@ function load() {
     pgoal = d.pgoal || 150;
     document.getElementById('goal-input').value = goal;
     document.getElementById('pgoal-input').value = pgoal;
+    save();
   } catch(e) {}
 }
 
