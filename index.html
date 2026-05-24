@@ -25,6 +25,7 @@
     --danger-bg: #FDECEA;
     --amber: #B45309;
     --amber-bg: #FEF3C7;
+    --protein-miss: #7A641F;
     --r: 12px;
     --r-sm: 8px;
   }
@@ -46,6 +47,7 @@
       --danger-bg: #2D1B1B;
       --amber: #FCD34D;
       --amber-bg: #2D2410;
+      --protein-miss: #4C4421;
     }
   }
 
@@ -205,8 +207,9 @@
   .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .bar-pair { width: 100%; height: 84px; display: flex; align-items: flex-end; gap: 2px; }
   .bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.4s ease; background: var(--accent); }
-  .bar.cal { flex: 2; }
-  .bar.protein { flex: 1; background: var(--amber); }
+  .bar.cal, .bar.protein { flex: 1; }
+  .bar.protein { background: var(--protein-miss); }
+  .bar.protein.hit { background: var(--amber); }
   .bar.over { background: var(--danger); }
   .bar.empty-bar { opacity: 0.15; background: var(--border-strong); }
   .bar-lbl { font-size: 9px; color: var(--text3); }
@@ -949,7 +952,7 @@ function renderStats() {
       const protH=Math.round((d.prot/proteinTarget)*84);
       const lbl=dateFromISO(d.date).toLocaleDateString('en-US',{weekday:'short',timeZone:tz}).slice(0,2);
       const calCls=d.logged?(d.cals>goal?'bar cal over':'bar cal'):'bar cal empty-bar';
-      const protCls=d.logged?'bar protein':'bar protein empty-bar';
+      const protCls=d.logged?(d.prot>=pgoal?'bar protein hit':'bar protein'):'bar protein empty-bar';
       return`<div class="bar-col" onclick="jumpToDate('${d.date}')" style="cursor:pointer"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div><span class="bar-lbl">${lbl}</span></div>`;
     }).join('');
   } else {
@@ -957,7 +960,7 @@ function renderStats() {
       const calH=Math.round((d.cals/maxCal)*84);
       const protH=Math.round((d.prot/proteinTarget)*84);
       const calCls=d.logged?(d.cals>goal?'bar cal over':'bar cal'):'bar cal empty-bar';
-      const protCls=d.logged?'bar protein':'bar protein empty-bar';
+      const protCls=d.logged?(d.prot>=pgoal?'bar protein hit':'bar protein'):'bar protein empty-bar';
       return`<div class="bar-col" onclick="jumpToDate('${d.date}')" style="cursor:pointer"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div></div>`;
     }).join('');
   }
