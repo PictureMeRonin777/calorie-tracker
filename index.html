@@ -55,6 +55,7 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
+    height: 100dvh;
     min-height: 100vh;
     padding: 0;
   }
@@ -71,7 +72,7 @@
   }
 
   /* Screens */
-  .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .screen { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
   .screen.active { display: flex; }
 
   /* Top bar */
@@ -112,6 +113,10 @@
     border-top: 1px solid var(--border);
     flex-shrink: 0;
     background: var(--surface);
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
   .nav-btn {
     flex: 1; padding: 10px 4px 12px;
@@ -148,7 +153,9 @@
   .entry-row {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 0; border-bottom: 1px solid var(--border);
+    cursor: pointer;
   }
+  .entry-row:hover .entry-name { color: var(--accent); }
   .entry-info { flex: 1; min-width: 0; }
   .entry-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .entry-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
@@ -194,7 +201,7 @@
   .period-btn.active { background: var(--accent-bg); color: var(--accent-text); border-color: var(--accent); }
 
   .chart-area { padding: 14px 20px; flex-shrink: 0; }
-  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 90px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 104px; border-bottom: 1px solid var(--border); margin-bottom: 8px; position: relative; }
   .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .bar-pair { width: 100%; height: 84px; display: flex; align-items: flex-end; gap: 2px; }
   .bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.4s ease; background: var(--accent); }
@@ -203,6 +210,19 @@
   .bar.over { background: var(--danger); }
   .bar.empty-bar { opacity: 0.15; background: var(--border-strong); }
   .bar-lbl { font-size: 9px; color: var(--text3); }
+  .target-line {
+    position: absolute; left: 0; right: 0;
+    border-top: 1px dashed currentColor;
+    opacity: 0.75; pointer-events: none;
+  }
+  .target-line.calorie { color: var(--accent); }
+  .target-line.protein { color: var(--amber); }
+  .target-line span {
+    position: absolute; right: 0; top: -9px;
+    background: var(--surface); padding-left: 5px;
+    font-size: 9px; color: currentColor; font-family: 'DM Mono', monospace;
+  }
+  .target-line.calorie span { left: 0; right: auto; padding-left: 0; padding-right: 5px; }
   .chart-legend { display: flex; gap: 14px; font-size: 11px; color: var(--text3); }
   .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
 
@@ -212,6 +232,18 @@
   }
   .avg-label { font-size: 13px; color: var(--text2); }
   .avg-val { font-size: 14px; font-weight: 500; color: var(--text); font-family: 'DM Mono', monospace; }
+  .history-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .history-date { font-size: 13px; font-weight: 500; color: var(--text); width: 86px; flex-shrink: 0; }
+  .history-main { flex: 1; min-width: 0; }
+  .history-cals { font-size: 14px; font-family: 'DM Mono', monospace; font-weight: 500; }
+  .history-cals.over { color: var(--danger); }
+  .history-cals.under { color: var(--accent); }
+  .history-prot { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .history-arrow { color: var(--text3); font-size: 18px; }
 
   /* Form */
   .form-body { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
@@ -379,6 +411,8 @@
       <div class="avg-row"><span class="avg-label">Alcohol calories</span><span class="avg-val" id="alc-cals">—</span></div>
       <div class="avg-row"><span class="avg-label">Share of total calories</span><span class="avg-val" id="alc-share">—</span></div>
       <div class="avg-row"><span class="avg-label">Alcohol days</span><span class="avg-val" id="alc-days">—</span></div>
+      <div class="section-label">Day by day</div>
+      <div id="history-list"></div>
     </div>
     <div class="nav">
       <button class="nav-btn" onclick="switchTab('log')" id="nb-log3"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Today</button>
@@ -595,6 +629,11 @@ function changeDay(delta) {
   if(viewingDate > todayISO()) viewingDate = todayISO();
   renderLog();
 }
+function jumpToDate(iso) {
+  viewingDate = iso;
+  switchTab('log');
+  renderLog();
+}
 function updateLogDate() {
   if(!viewingDate) viewingDate = todayISO();
   document.getElementById('log-date').textContent = dateLabel(viewingDate);
@@ -650,6 +689,26 @@ function openForm(favIdx) {
   Object.values(tabScreens).forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
   setTimeout(()=>document.getElementById('fi-food').focus(), 60);
+}
+
+function openEntry(i) {
+  const entry = entries[i];
+  if(!entry) return;
+  document.getElementById('form-title').textContent = 'Log again';
+  document.getElementById('fi-food').value = entry.name || '';
+  document.getElementById('fi-cals').value = Math.round(entry.cals || 0);
+  document.getElementById('fi-prot').value = (entry.prot || 0).toFixed(1);
+  document.getElementById('fi-qty').value = entry.qty || 1;
+  document.getElementById('fi-unit').value = entry.unit || '';
+  document.getElementById('fi-fav').checked = findFavoriteIndex(entry.name) !== -1;
+  document.getElementById('fi-alcohol').checked = !!entry.alcohol;
+  document.getElementById('ai-hint').innerHTML = '';
+  baseCal = entry.baseCal || entry.cals || null;
+  baseProt = entry.baseProt || entry.prot || null;
+  clearTimeout(aiTimer);
+  Object.values(tabScreens).forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('s-form').classList.add('active');
+  setTimeout(()=>document.getElementById('fi-qty').focus(), 60);
 }
 
 function closeForm() {
@@ -773,7 +832,7 @@ function renderLog() {
   list.innerHTML = te.map((e,i)=>{
     const realIdx = entries.lastIndexOf(e);
     const sub = (e.qty!==1||e.unit) ? `${e.qty}${e.unit?' '+e.unit:''}` : '';
-    return `<div class="entry-row">
+    return `<div class="entry-row" onclick="openEntry(${realIdx})">
       <div class="entry-info">
         <div class="entry-name">${e.name}${e.alcohol?'<span class="entry-tag">Alcohol</span>':''}</div>
         ${sub?`<div class="entry-sub">${sub}</div>`:''}
@@ -782,7 +841,7 @@ function renderLog() {
         <div class="entry-cals">${Math.round(e.cals)}</div>
         <div class="entry-prot">${e.prot.toFixed(1)}g protein</div>
       </div>
-      <button class="icon-btn" onclick="deleteEntry(${realIdx})" aria-label="Delete">✕</button>
+      <button class="icon-btn" onclick="event.stopPropagation();deleteEntry(${realIdx})" aria-label="Delete">✕</button>
     </div>`;
   }).join('');
 }
@@ -861,26 +920,45 @@ function renderStats() {
   document.getElementById('alc-cals').textContent      = tracked.length ? Math.round(totalAlc)+' kcal' : '—';
   document.getElementById('alc-share').textContent     = totalCal ? Math.round((totalAlc/totalCal)*100)+'%' : '—';
   document.getElementById('alc-days').textContent      = tracked.length ? `${alcoholDays} / ${tracked.length}` : '—';
+  const history = document.getElementById('history-list');
+  const loggedDays = tracked.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  history.innerHTML = loggedDays.length ? loggedDays.map(d=>{
+    const label = d.date === todayISO() ? 'Today' : dateFromISO(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:tz});
+    const calClass = d.cals > goal ? 'history-cals over' : 'history-cals under';
+    return `<div class="history-row" onclick="jumpToDate('${d.date}')">
+      <div class="history-date">${label}</div>
+      <div class="history-main">
+        <div class="${calClass}">${Math.round(d.cals)} kcal</div>
+        <div class="history-prot">${d.prot.toFixed(1)}g protein${d.alcCals ? ` · ${Math.round(d.alcCals)} alcohol kcal` : ''}</div>
+      </div>
+      <span class="history-arrow">›</span>
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:1rem 0">No days logged yet</div>';
 
   const maxCal = Math.max(goal, ...dayData.map(d=>d.cals), 1);
   const proteinTarget = Math.max(pgoal, ...dayData.map(d=>d.prot), 1);
   const chart  = document.getElementById('bar-chart');
+  const calGoalH = Math.min(84, Math.round((goal/maxCal)*84));
+  const proteinGoalH = Math.min(84, Math.round((pgoal/proteinTarget)*84));
+  const targetLines = `
+    <div class="target-line calorie" style="bottom:${calGoalH + 16}px"><span>${goal.toLocaleString()} kcal</span></div>
+    <div class="target-line protein" style="bottom:${proteinGoalH + 16}px"><span>${pgoal}g</span></div>`;
   if(currentPeriod==='week') {
-    chart.innerHTML = dayData.map(d=>{
+    chart.innerHTML = targetLines + dayData.map(d=>{
       const calH=Math.round((d.cals/maxCal)*84);
       const protH=Math.round((d.prot/proteinTarget)*84);
       const lbl=dateFromISO(d.date).toLocaleDateString('en-US',{weekday:'short',timeZone:tz}).slice(0,2);
       const calCls=d.logged?(d.cals>goal?'bar cal over':'bar cal'):'bar cal empty-bar';
       const protCls=d.logged?'bar protein':'bar protein empty-bar';
-      return`<div class="bar-col"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div><span class="bar-lbl">${lbl}</span></div>`;
+      return`<div class="bar-col" onclick="jumpToDate('${d.date}')" style="cursor:pointer"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div><span class="bar-lbl">${lbl}</span></div>`;
     }).join('');
   } else {
-    chart.innerHTML = dayData.map(d=>{
+    chart.innerHTML = targetLines + dayData.map(d=>{
       const calH=Math.round((d.cals/maxCal)*84);
       const protH=Math.round((d.prot/proteinTarget)*84);
       const calCls=d.logged?(d.cals>goal?'bar cal over':'bar cal'):'bar cal empty-bar';
       const protCls=d.logged?'bar protein':'bar protein empty-bar';
-      return`<div class="bar-col"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div></div>`;
+      return`<div class="bar-col" onclick="jumpToDate('${d.date}')" style="cursor:pointer"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div></div>`;
     }).join('');
   }
 }
