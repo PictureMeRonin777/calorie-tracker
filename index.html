@@ -97,6 +97,14 @@
     background: var(--accent-bg); border-color: var(--accent);
     color: var(--accent-text);
   }
+  .date-nav { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+  .date-nav h1 { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .date-btn {
+    width: 28px; height: 28px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface2); color: var(--text2);
+    cursor: pointer; font-size: 18px; line-height: 1;
+  }
+  .date-btn:disabled { opacity: 0.35; cursor: default; }
 
   /* Nav */
   .nav {
@@ -188,9 +196,12 @@
   .chart-area { padding: 14px 20px; flex-shrink: 0; }
   .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 90px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
   .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .bar-pair { width: 100%; height: 84px; display: flex; align-items: flex-end; gap: 2px; }
   .bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.4s ease; background: var(--accent); }
+  .bar.cal { flex: 2; }
+  .bar.protein { flex: 1; background: var(--amber); }
   .bar.over { background: var(--danger); }
-  .bar.empty-bar { opacity: 0.15; }
+  .bar.empty-bar { opacity: 0.15; background: var(--border-strong); }
   .bar-lbl { font-size: 9px; color: var(--text3); }
   .chart-legend { display: flex; gap: 14px; font-size: 11px; color: var(--text3); }
   .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
@@ -243,13 +254,14 @@
     border: 1px solid var(--border);
   }
   .settings-row label { font-size: 13px; color: var(--text2); flex: 1; }
-  .settings-row input {
+  .settings-row input, .settings-row select {
     width: 90px; text-align: right; padding: 6px 10px;
     font-size: 14px; font-family: 'DM Mono', monospace;
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 6px; color: var(--text); outline: none;
   }
-  .settings-row input:focus { border-color: var(--accent); }
+  .settings-row select { width: 190px; font-family: 'DM Sans', sans-serif; text-align: left; }
+  .settings-row input:focus, .settings-row select:focus { border-color: var(--accent); }
   .danger-btn {
     width: 100%; padding: 11px; font-size: 13px; font-family: 'DM Sans', sans-serif;
     background: var(--danger-bg); border: 1px solid var(--danger);
@@ -270,7 +282,11 @@
   <div id="s-log" class="screen active">
     <div class="topbar">
       <span class="topbar-icon">🥗</span>
-      <h1 id="log-date">Today</h1>
+      <div class="date-nav">
+        <button class="date-btn" onclick="changeDay(-1)" aria-label="Previous day">‹</button>
+        <h1 id="log-date">Today</h1>
+        <button class="date-btn" id="day-next" onclick="changeDay(1)" aria-label="Next day">›</button>
+      </div>
       <button class="topbar-btn primary" onclick="openForm(null)">+ Log food</button>
     </div>
     <div class="stat-grid">
@@ -346,7 +362,8 @@
     <div class="chart-area">
       <div class="bar-chart" id="bar-chart"></div>
       <div class="chart-legend">
-        <span><span class="dot" style="background:var(--accent)"></span>Under goal</span>
+        <span><span class="dot" style="background:var(--accent)"></span>Calories</span>
+        <span><span class="dot" style="background:var(--amber)"></span>Protein</span>
         <span><span class="dot" style="background:var(--danger)"></span>Over goal</span>
         <span><span class="dot" style="background:var(--border-strong)"></span>No data</span>
       </div>
@@ -387,6 +404,16 @@
         <div class="settings-row">
           <label for="pgoal-input">Protein target (g)</label>
           <input type="number" id="pgoal-input" min="0" step="5" value="150" oninput="saveGoal()">
+        </div>
+        <div class="settings-row">
+          <label for="tz-select">Timezone</label>
+          <select id="tz-select" onchange="saveGoal()">
+            <option value="America/Chicago">Central Time</option>
+            <option value="America/New_York">Eastern Time</option>
+            <option value="America/Denver">Mountain Time</option>
+            <option value="America/Los_Angeles">Pacific Time</option>
+            <option value="UTC">UTC</option>
+          </select>
         </div>
       </div>
       <div class="settings-group">
@@ -454,14 +481,16 @@ let entries = [];
 let favorites = [];
 let goal = 2000;
 let pgoal = 150;
+let tz = 'America/Chicago';
 let currentPeriod = 'week';
 let aiTimer = null;
 let baseCal = null, baseProt = null;
 let prevTab = 'log';
+let viewingDate = null;
 
 // ── Persistence ───────────────────────────────────────
 function save() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({entries, favorites, goal, pgoal})); } catch(e){}
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({entries, favorites, goal, pgoal, tz})); } catch(e){}
 }
 function parseStoredData(key) {
   try { return JSON.parse(localStorage.getItem(key)||'{}') || {}; } catch(e) { return {}; }
@@ -488,8 +517,10 @@ function load() {
     }));
     goal = d.goal || 2000;
     pgoal = d.pgoal || 150;
+    tz = d.tz || 'America/Chicago';
     document.getElementById('goal-input').value = goal;
     document.getElementById('pgoal-input').value = pgoal;
+    document.getElementById('tz-select').value = tz;
     save();
   } catch(e) {}
 }
@@ -532,16 +563,51 @@ function touchFavorite(name, usedAt) {
 }
 
 // ── Date helpers ──────────────────────────────────────
-function todayISO() { return new Date().toISOString().split('T')[0]; }
-function todayLabel() {
-  return new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+function pad2(n) { return String(n).padStart(2,'0'); }
+function isoInTz(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
-document.getElementById('log-date').textContent = todayLabel();
+function dateISO(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;
+}
+function todayISO() { return isoInTz(new Date(), tz); }
+function dateFromISO(iso) {
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function dateLabel(iso) {
+  const label = dateFromISO(iso).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:tz});
+  return iso === todayISO() ? label : label;
+}
+function changeDay(delta) {
+  const next = dateFromISO(viewingDate || todayISO());
+  next.setDate(next.getDate() + delta);
+  viewingDate = dateISO(next);
+  if(viewingDate > todayISO()) viewingDate = todayISO();
+  renderLog();
+}
+function updateLogDate() {
+  if(!viewingDate) viewingDate = todayISO();
+  document.getElementById('log-date').textContent = dateLabel(viewingDate);
+  const nextBtn = document.getElementById('day-next');
+  if(nextBtn) nextBtn.disabled = viewingDate >= todayISO();
+}
 
 // ── Goal ──────────────────────────────────────────────
 function saveGoal() {
   goal = parseInt(document.getElementById('goal-input').value)||2000;
   pgoal = parseInt(document.getElementById('pgoal-input').value)||150;
+  tz = document.getElementById('tz-select').value || 'America/Chicago';
+  if(viewingDate > todayISO()) viewingDate = todayISO();
   save(); renderLog(); renderStats();
 }
 
@@ -660,7 +726,7 @@ async function logEntry() {
   save();
   renderFavs();
 
-  const today = todayISO();
+  const today = viewingDate || todayISO();
   try {
     await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST",
@@ -683,8 +749,9 @@ async function logEntry() {
 
 // ── Render: Log ───────────────────────────────────────
 function renderLog() {
-  const today = todayISO();
-  const te = entries.filter(e=>e.date===today);
+  if(!viewingDate) viewingDate = todayISO();
+  updateLogDate();
+  const te = entries.filter(e=>e.date===viewingDate);
   const totalCal = te.reduce((s,e)=>s+e.cals,0);
   const totalProt = te.reduce((s,e)=>s+e.prot,0);
   document.getElementById('t-cals').textContent = Math.round(totalCal);
@@ -752,17 +819,17 @@ function setPeriod(p) {
 }
 
 function renderStats() {
-  const today = new Date();
+  const today = dateFromISO(todayISO());
   let days = [];
   if(currentPeriod==='week') {
     for(let i=6;i>=0;i--) {
       const d=new Date(today); d.setDate(today.getDate()-i);
-      days.push(d.toISOString().split('T')[0]);
+      days.push(dateISO(d));
     }
   } else {
     const yr=today.getFullYear(), mo=today.getMonth();
     const dim=new Date(yr,mo+1,0).getDate();
-    for(let i=1;i<=dim;i++) days.push(new Date(yr,mo,i).toISOString().split('T')[0]);
+    for(let i=1;i<=dim;i++) days.push(dateISO(new Date(yr,mo,i)));
   }
 
   const dayData = days.map(d=>{
@@ -796,19 +863,24 @@ function renderStats() {
   document.getElementById('alc-days').textContent      = tracked.length ? `${alcoholDays} / ${tracked.length}` : '—';
 
   const maxCal = Math.max(goal, ...dayData.map(d=>d.cals), 1);
+  const proteinTarget = Math.max(pgoal, ...dayData.map(d=>d.prot), 1);
   const chart  = document.getElementById('bar-chart');
   if(currentPeriod==='week') {
     chart.innerHTML = dayData.map(d=>{
-      const h=Math.round((d.cals/maxCal)*84);
-      const lbl=new Date(d.date+'T12:00').toLocaleDateString('en-US',{weekday:'short'}).slice(0,2);
-      const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar empty-bar';
-      return`<div class="bar-col"><div class="${cls}" style="height:${Math.max(h,2)}px"></div><span class="bar-lbl">${lbl}</span></div>`;
+      const calH=Math.round((d.cals/maxCal)*84);
+      const protH=Math.round((d.prot/proteinTarget)*84);
+      const lbl=dateFromISO(d.date).toLocaleDateString('en-US',{weekday:'short',timeZone:tz}).slice(0,2);
+      const calCls=d.logged?(d.cals>goal?'bar cal over':'bar cal'):'bar cal empty-bar';
+      const protCls=d.logged?'bar protein':'bar protein empty-bar';
+      return`<div class="bar-col"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div><span class="bar-lbl">${lbl}</span></div>`;
     }).join('');
   } else {
     chart.innerHTML = dayData.map(d=>{
-      const h=Math.round((d.cals/maxCal)*84);
-      const cls=d.logged?(d.cals>goal?'bar over':'bar'):'bar empty-bar';
-      return`<div class="bar-col"><div class="${cls}" style="height:${Math.max(h,2)}px"></div></div>`;
+      const calH=Math.round((d.cals/maxCal)*84);
+      const protH=Math.round((d.prot/proteinTarget)*84);
+      const calCls=d.logged?(d.cals>goal?'bar cal over':'bar cal'):'bar cal empty-bar';
+      const protCls=d.logged?'bar protein':'bar protein empty-bar';
+      return`<div class="bar-col"><div class="bar-pair"><div class="${calCls}" style="height:${Math.max(calH,2)}px"></div><div class="${protCls}" style="height:${Math.max(protH,2)}px"></div></div></div>`;
     }).join('');
   }
 }
