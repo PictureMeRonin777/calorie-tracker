@@ -479,8 +479,9 @@
       </div>
       <div class="settings-group">
         <div class="section-label">Data</div>
-        <p class="settings-note">Session entries are stored in your browser and persist across reloads on this device. All entries are also saved to your Notion database automatically.</p>
-        <button class="danger-btn" onclick="clearSession()">Clear all session entries</button>
+        <p class="settings-note">Session entries are stored in your browser and persist across reloads on this device. Export a CSV backup regularly so you have a copy outside local storage.</p>
+        <button class="btn primary" onclick="exportCSV()">Export CSV backup</button>
+        <div class="settings-note" id="export-status" style="text-align:center;margin-top:10px;min-height:18px"></div>
       </div>
       <div class="settings-group">
         <div class="section-label">About</div>
@@ -990,11 +991,55 @@ function renderStats() {
   }
 }
 
-// ── Session clear ─────────────────────────────────────
-function clearSession() {
-  if(!confirm('Clear all session entries? Favorites and goals will be kept.')) return;
-  entries = [];
-  save(); renderLog(); renderStats();
+// ── CSV export ────────────────────────────────────────
+function csvCell(value) {
+  const text = String(value ?? '');
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
+}
+
+async function exportCSV() {
+  const status = document.getElementById('export-status');
+  if(!entries.length) {
+    status.textContent = 'No entries to export yet.';
+    return;
+  }
+
+  const header = ['Date','Food','Calories','Protein','Quantity','Unit','Alcohol'];
+  const rows = entries
+    .slice()
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||'') || (a.loggedAt||0)-(b.loggedAt||0))
+    .map(e => [
+      e.date || '',
+      e.name || '',
+      Math.round(e.cals || 0),
+      Number(e.prot || 0).toFixed(1),
+      e.qty || 1,
+      e.unit || '',
+      e.alcohol ? 'yes' : 'no'
+    ].map(csvCell).join(','));
+
+  const csv = [header.join(','), ...rows].join('\n');
+  const filename = `calorie-export-${todayISO()}.csv`;
+  const blob = new Blob([csv], {type:'text/csv'});
+
+  try {
+    const file = new File([blob], filename, {type:'text/csv'});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+      await navigator.share({files:[file], title: filename, text: 'Calorie tracker CSV backup'});
+      status.textContent = 'CSV shared.';
+      return;
+    }
+  } catch(e) {}
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  status.textContent = `CSV downloaded: ${filename}`;
 }
 
 // ── Init ──────────────────────────────────────────────
