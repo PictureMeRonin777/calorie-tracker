@@ -10,6 +10,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+    --nav-space: calc(66px + max(env(safe-area-inset-bottom), 8px));
     --bg: #F7F5F0;
     --surface: #FFFFFF;
     --surface2: #F0EDE6;
@@ -81,7 +82,19 @@
   }
 
   /* Screens */
-  .screen { display: none; flex-direction: column; flex: 1; min-height: 0; height: 100%; overflow: hidden; }
+  .screen {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: 430px;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0 auto;
+    background: var(--surface);
+    overflow: hidden;
+  }
   .screen.active { display: flex; }
 
   /* Top bar */
@@ -120,10 +133,15 @@
   .nav {
     display: flex;
     border-top: 1px solid var(--border);
-    flex-shrink: 0;
     background: var(--surface);
-    position: relative;
-    z-index: 20;
+    position: fixed;
+    left: 50%;
+    right: auto;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    z-index: 100;
     padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
   .nav-btn {
@@ -137,7 +155,7 @@
   .nav-btn.active { color: var(--accent); }
 
   /* Scroll body */
-  .scroll-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px; -webkit-overflow-scrolling: touch; }
+  .scroll-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 20px var(--nav-space); -webkit-overflow-scrolling: touch; }
 
   /* Stat grid */
   .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px 10px; flex-shrink: 0; }
