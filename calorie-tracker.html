@@ -144,6 +144,12 @@
   .entry-info { flex: 1; min-width: 0; }
   .entry-name { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .entry-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .entry-tag {
+    display: inline-flex; align-items: center;
+    margin-left: 6px; padding: 1px 6px; border-radius: 99px;
+    background: var(--amber-bg); color: var(--amber);
+    font-size: 10px; font-weight: 500; vertical-align: middle;
+  }
   .entry-right { text-align: right; flex-shrink: 0; }
   .entry-cals { font-size: 14px; font-weight: 500; color: var(--text); font-family: 'DM Mono', monospace; }
   .entry-prot { font-size: 11px; color: var(--text3); margin-top: 1px; }
@@ -352,6 +358,10 @@
       <div class="avg-row"><span class="avg-label">Days tracked</span><span class="avg-val" id="days-tracked">—</span></div>
       <div class="avg-row"><span class="avg-label">Days at or under goal</span><span class="avg-val" id="days-on-goal">—</span></div>
       <div class="avg-row"><span class="avg-label">Best day (fewest cals)</span><span class="avg-val" id="best-day">—</span></div>
+      <div class="section-label">Alcohol</div>
+      <div class="avg-row"><span class="avg-label">Alcohol calories</span><span class="avg-val" id="alc-cals">—</span></div>
+      <div class="avg-row"><span class="avg-label">Share of total calories</span><span class="avg-val" id="alc-share">—</span></div>
+      <div class="avg-row"><span class="avg-label">Alcohol days</span><span class="avg-val" id="alc-days">—</span></div>
     </div>
     <div class="nav">
       <button class="nav-btn" onclick="switchTab('log')" id="nb-log3"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Today</button>
@@ -386,7 +396,7 @@
       </div>
       <div class="settings-group">
         <div class="section-label">About</div>
-        <p class="settings-note">AI-powered calorie & protein estimates are suggestions only — always edit to match your actual portions. Entries sync to your Notion Calorie Tracking database in real time.</p>
+        <p class="settings-note">AI-powered calorie & protein estimates are suggestions only — always edit to match your actual portions. Entries sync to your Notion Calorie Tracking database in real time. Alcohol tags are tracked locally in this browser for now.</p>
       </div>
     </div>
     <div class="nav">
@@ -420,6 +430,10 @@
       <div class="fav-check-row">
         <input type="checkbox" id="fi-fav">
         <label for="fi-fav">Save to favorites</label>
+      </div>
+      <div class="fav-check-row">
+        <input type="checkbox" id="fi-alcohol">
+        <label for="fi-alcohol">Alcohol</label>
       </div>
       <p class="form-hint">AI estimates are suggestions — edit freely before logging.</p>
     </div>
@@ -545,6 +559,7 @@ function openForm(favIdx) {
   document.getElementById('fi-qty').value = fav ? (fav.qty||1) : '1';
   document.getElementById('fi-unit').value = fav ? (fav.unit||'') : '';
   document.getElementById('fi-fav').checked = fav ? true : false;
+  document.getElementById('fi-alcohol').checked = fav ? !!fav.alcohol : false;
   document.getElementById('ai-hint').innerHTML = '';
   baseCal = fav ? fav.baseCal||fav.cals : null;
   baseProt = fav ? fav.baseProt||fav.prot : null;
@@ -613,6 +628,7 @@ async function logEntry() {
   const qty  = parseFloat(document.getElementById('fi-qty').value)||1;
   const unit = document.getElementById('fi-unit').value.trim();
   const saveFav = document.getElementById('fi-fav').checked;
+  const alcohol = document.getElementById('fi-alcohol').checked;
   if(!name) { document.getElementById('fi-food').focus(); return; }
 
   const btn = document.getElementById('log-btn');
@@ -620,7 +636,7 @@ async function logEntry() {
 
   const loggedAt = Date.now();
   if(saveFav) {
-    upsertFavorite({name, cals, prot, qty, unit, baseCal, baseProt}, loggedAt);
+    upsertFavorite({name, cals, prot, qty, unit, alcohol, baseCal, baseProt}, loggedAt);
   } else {
     touchFavorite(name, loggedAt);
   }
@@ -642,7 +658,7 @@ async function logEntry() {
     });
   } catch(e) {}
 
-  entries.push({name,cals,prot,qty,unit,date:today,loggedAt});
+  entries.push({name,cals,prot,qty,unit,alcohol,date:today,loggedAt});
   save(); renderLog();
   btn.disabled=false; btn.innerHTML='✓ Log it';
   closeForm();
@@ -675,7 +691,7 @@ function renderLog() {
     const sub = (e.qty!==1||e.unit) ? `${e.qty}${e.unit?' '+e.unit:''}` : '';
     return `<div class="entry-row">
       <div class="entry-info">
-        <div class="entry-name">${e.name}</div>
+        <div class="entry-name">${e.name}${e.alcohol?'<span class="entry-tag">Alcohol</span>':''}</div>
         ${sub?`<div class="entry-sub">${sub}</div>`:''}
       </div>
       <div class="entry-right">
@@ -702,7 +718,7 @@ function renderFavs() {
       <span class="fav-star">★</span>
       <div class="fav-info">
         <div class="fav-name">${f.name}</div>
-        <div class="fav-detail">${Math.round(f.cals)} kcal · ${f.prot.toFixed(1)}g protein${f.unit?' · per '+f.unit:''}</div>
+        <div class="fav-detail">${Math.round(f.cals)} kcal · ${f.prot.toFixed(1)}g protein${f.unit?' · per '+f.unit:''}${f.alcohol?' · Alcohol':''}</div>
       </div>
       <button class="icon-btn" onclick="event.stopPropagation();removeFav(${i})" aria-label="Remove">✕</button>
     </div>`).join('');
@@ -734,12 +750,22 @@ function renderStats() {
 
   const dayData = days.map(d=>{
     const es=entries.filter(e=>e.date===d);
-    return{date:d, cals:es.reduce((s,e)=>s+e.cals,0), prot:es.reduce((s,e)=>s+e.prot,0), logged:es.length>0};
+    return{
+      date:d,
+      cals:es.reduce((s,e)=>s+e.cals,0),
+      prot:es.reduce((s,e)=>s+e.prot,0),
+      alcCals:es.filter(e=>e.alcohol).reduce((s,e)=>s+e.cals,0),
+      alcohol:es.some(e=>e.alcohol),
+      logged:es.length>0
+    };
   });
 
   const tracked = dayData.filter(d=>d.logged);
   const avgCal  = tracked.length ? tracked.reduce((s,d)=>s+d.cals,0)/tracked.length : 0;
   const avgProt = tracked.length ? tracked.reduce((s,d)=>s+d.prot,0)/tracked.length : 0;
+  const totalCal = tracked.reduce((s,d)=>s+d.cals,0);
+  const totalAlc = tracked.reduce((s,d)=>s+d.alcCals,0);
+  const alcoholDays = tracked.filter(d=>d.alcohol).length;
   const onGoal  = tracked.filter(d=>d.cals<=goal&&d.cals>0).length;
   const best    = tracked.length ? tracked.reduce((a,b)=>a.cals<b.cals?a:b) : null;
 
@@ -748,6 +774,9 @@ function renderStats() {
   document.getElementById('days-tracked').textContent = tracked.length || '—';
   document.getElementById('days-on-goal').textContent = tracked.length ? `${onGoal} / ${tracked.length}` : '—';
   document.getElementById('best-day').textContent     = best ? `${Math.round(best.cals)} kcal (${best.date.slice(5)})` : '—';
+  document.getElementById('alc-cals').textContent      = tracked.length ? Math.round(totalAlc)+' kcal' : '—';
+  document.getElementById('alc-share').textContent     = totalCal ? Math.round((totalAlc/totalCal)*100)+'%' : '—';
+  document.getElementById('alc-days').textContent      = tracked.length ? `${alcoholDays} / ${tracked.length}` : '—';
 
   const maxCal = Math.max(goal, ...dayData.map(d=>d.cals), 1);
   const chart  = document.getElementById('bar-chart');
