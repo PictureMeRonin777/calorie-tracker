@@ -569,9 +569,10 @@
         <div class="field"><label for="fi-unit">Unit</label><input type="text" id="fi-unit" placeholder="serving, g, oz…"></div>
       </div>
       <div class="row2">
-        <div class="field"><label for="fi-cals">Calories (kcal)</label><input type="number" id="fi-cals" placeholder="0" min="0" step="1"></div>
-        <div class="field"><label for="fi-prot">Protein (g)</label><input type="number" id="fi-prot" placeholder="0" min="0" step="0.1"></div>
+        <div class="field"><label for="fi-cals">Calories per unit</label><input type="number" id="fi-cals" placeholder="0" min="0" step="1" oninput="updateTotalPreview()"></div>
+        <div class="field"><label for="fi-prot">Protein per unit</label><input type="number" id="fi-prot" placeholder="0" min="0" step="0.1" oninput="updateTotalPreview()"></div>
       </div>
+      <div class="ai-hint" id="total-preview"></div>
       <div class="fav-check-row">
         <input type="checkbox" id="fi-fav">
         <label for="fi-fav">Save to favorites</label>
@@ -631,7 +632,7 @@ function load() {
     const d = bestStoredData();
     entries = d.entries || [];
     favorites = (d.favorites || []).map(f => ({
-      ...f,
+      ...normalizeFavorite(f),
       lastUsedAt: f.lastUsedAt || latestUseForFavorite(f)
     }));
     goal = d.goal || 2000;
@@ -666,9 +667,15 @@ function favoriteRows() {
     .sort((a, b) => (b.favorite.lastUsedAt || 0) - (a.favorite.lastUsedAt || 0));
 }
 
+function normalizeFavorite(fav) {
+  const cals = storedBaseValue(fav, 'cals', 'baseCal');
+  const prot = storedBaseValue(fav, 'prot', 'baseProt');
+  return {...fav, cals, prot, qty: 1, baseCal: cals, baseProt: prot};
+}
+
 function upsertFavorite(fav, usedAt) {
   const existingIndex = findFavoriteIndex(fav.name);
-  const next = {...fav, lastUsedAt: usedAt};
+  const next = {...normalizeFavorite(fav), lastUsedAt: usedAt};
   if(existingIndex === -1) {
     favorites.push(next);
   } else {
@@ -781,11 +788,12 @@ function openForm(favIdx) {
   document.getElementById('fi-food').value = fav ? fav.name : '';
   document.getElementById('fi-cals').value = fav ? Math.round(fav.cals) : '';
   document.getElementById('fi-prot').value = fav ? fav.prot.toFixed(1) : '';
-  document.getElementById('fi-qty').value = fav ? (fav.qty||1) : '1';
+  document.getElementById('fi-qty').value = '1';
   document.getElementById('fi-unit').value = fav ? (fav.unit||'') : '';
   document.getElementById('fi-fav').checked = fav ? true : false;
   document.getElementById('fi-alcohol').checked = fav ? !!fav.alcohol : false;
   document.getElementById('ai-hint').innerHTML = '';
+  updateTotalPreview();
   baseCal = fav ? storedBaseValue(fav, 'cals', 'baseCal') : null;
   baseProt = fav ? storedBaseValue(fav, 'prot', 'baseProt') : null;
   clearTimeout(aiTimer);
@@ -800,16 +808,19 @@ function openEntry(i) {
   editingIndex = i;
   document.getElementById('form-title').textContent = 'Edit entry';
   document.getElementById('log-btn').innerHTML = '✓ Save changes';
+  const perUnitCal = entryBaseValue(entry, 'cals', 'baseCal');
+  const perUnitProt = entryBaseValue(entry, 'prot', 'baseProt');
   document.getElementById('fi-food').value = entry.name || '';
-  document.getElementById('fi-cals').value = Math.round(entry.cals || 0);
-  document.getElementById('fi-prot').value = (entry.prot || 0).toFixed(1);
+  document.getElementById('fi-cals').value = Math.round(perUnitCal || 0);
+  document.getElementById('fi-prot').value = (perUnitProt || 0).toFixed(1);
   document.getElementById('fi-qty').value = entry.qty || 1;
   document.getElementById('fi-unit').value = entry.unit || '';
   document.getElementById('fi-fav').checked = findFavoriteIndex(entry.name) !== -1;
   document.getElementById('fi-alcohol').checked = !!entry.alcohol;
   document.getElementById('ai-hint').innerHTML = '';
-  baseCal = entryBaseValue(entry, 'cals', 'baseCal');
-  baseProt = entryBaseValue(entry, 'prot', 'baseProt');
+  baseCal = perUnitCal;
+  baseProt = perUnitProt;
+  updateTotalPreview();
   clearTimeout(aiTimer);
   Object.values(tabScreens).forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
@@ -852,9 +863,9 @@ async function estimateNow() {
     const text = (data.content?.find(b=>b.type==='text')?.text||'').replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(text);
     baseCal = parsed.calories; baseProt = parsed.protein;
-    const qty = parseFloat(document.getElementById('fi-qty').value)||1;
-    document.getElementById('fi-cals').value = Math.round(baseCal * qty);
-    document.getElementById('fi-prot').value = (baseProt * qty).toFixed(1);
+    document.getElementById('fi-cals').value = Math.round(baseCal);
+    document.getElementById('fi-prot').value = baseProt.toFixed(1);
+    updateTotalPreview();
     setHint(`✦ ${parsed.serving_description} — edit freely`);
   } catch(e) {
     setHint('⚠ Could not estimate — enter manually');
@@ -862,10 +873,7 @@ async function estimateNow() {
 }
 
 function onQtyChange() {
-  if(baseCal==null) return;
-  const qty = parseFloat(document.getElementById('fi-qty').value)||1;
-  document.getElementById('fi-cals').value = Math.round(baseCal * qty);
-  document.getElementById('fi-prot').value = (baseProt * qty).toFixed(1);
+  updateTotalPreview();
 }
 
 function stepQty(dir) {
@@ -876,12 +884,23 @@ function stepQty(dir) {
   onQtyChange();
 }
 
+function updateTotalPreview() {
+  const preview = document.getElementById('total-preview');
+  if(!preview) return;
+  const qty = parseFloat(document.getElementById('fi-qty').value) || 1;
+  const cals = parseFloat(document.getElementById('fi-cals').value) || 0;
+  const prot = parseFloat(document.getElementById('fi-prot').value) || 0;
+  preview.textContent = `Total for this log: ${Math.round(cals * qty)} kcal · ${(prot * qty).toFixed(1)}g protein`;
+}
+
 // ── Log entry ─────────────────────────────────────────
 async function logEntry() {
   const name = document.getElementById('fi-food').value.trim();
-  const cals = parseFloat(document.getElementById('fi-cals').value)||0;
-  const prot = parseFloat(document.getElementById('fi-prot').value)||0;
+  const calsPerUnit = parseFloat(document.getElementById('fi-cals').value)||0;
+  const protPerUnit = parseFloat(document.getElementById('fi-prot').value)||0;
   const qty  = parseFloat(document.getElementById('fi-qty').value)||1;
+  const cals = calsPerUnit * qty;
+  const prot = protPerUnit * qty;
   const unit = document.getElementById('fi-unit').value.trim();
   const saveFav = document.getElementById('fi-fav').checked;
   const alcohol = document.getElementById('fi-alcohol').checked;
@@ -891,10 +910,10 @@ async function logEntry() {
   btn.disabled = true; btn.textContent = '…Saving';
 
   const loggedAt = Date.now();
-  const savedBaseCal = qty ? cals / qty : cals;
-  const savedBaseProt = qty ? prot / qty : prot;
+  const savedBaseCal = calsPerUnit;
+  const savedBaseProt = protPerUnit;
   if(saveFav) {
-    upsertFavorite({name, cals, prot, qty, unit, alcohol, baseCal: savedBaseCal, baseProt: savedBaseProt}, loggedAt);
+    upsertFavorite({name, cals: savedBaseCal, prot: savedBaseProt, qty: 1, unit, alcohol, baseCal: savedBaseCal, baseProt: savedBaseProt}, loggedAt);
   } else {
     touchFavorite(name, loggedAt);
   }
