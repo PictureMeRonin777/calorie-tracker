@@ -681,6 +681,22 @@ function touchFavorite(name, usedAt) {
   if(existingIndex !== -1) favorites[existingIndex].lastUsedAt = usedAt;
 }
 
+function storedBaseValue(item, valueKey, baseKey) {
+  const base = parseFloat(item?.[baseKey]);
+  if(Number.isFinite(base) && base > 0) return base;
+  const qty = parseFloat(item?.qty) || 1;
+  return (parseFloat(item?.[valueKey]) || 0) / qty;
+}
+
+function entryBaseValue(entry, valueKey, baseKey) {
+  const favIndex = findFavoriteIndex(entry?.name);
+  if(favIndex !== -1) {
+    const favBase = storedBaseValue(favorites[favIndex], valueKey, baseKey);
+    if(favBase > 0) return favBase;
+  }
+  return storedBaseValue(entry, valueKey, baseKey);
+}
+
 // ── Date helpers ──────────────────────────────────────
 function pad2(n) { return String(n).padStart(2,'0'); }
 function isoInTz(date, timeZone) {
@@ -770,8 +786,8 @@ function openForm(favIdx) {
   document.getElementById('fi-fav').checked = fav ? true : false;
   document.getElementById('fi-alcohol').checked = fav ? !!fav.alcohol : false;
   document.getElementById('ai-hint').innerHTML = '';
-  baseCal = fav ? fav.baseCal||fav.cals : null;
-  baseProt = fav ? fav.baseProt||fav.prot : null;
+  baseCal = fav ? storedBaseValue(fav, 'cals', 'baseCal') : null;
+  baseProt = fav ? storedBaseValue(fav, 'prot', 'baseProt') : null;
   clearTimeout(aiTimer);
   Object.values(tabScreens).forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
@@ -792,8 +808,8 @@ function openEntry(i) {
   document.getElementById('fi-fav').checked = findFavoriteIndex(entry.name) !== -1;
   document.getElementById('fi-alcohol').checked = !!entry.alcohol;
   document.getElementById('ai-hint').innerHTML = '';
-  baseCal = entry.baseCal || entry.cals || null;
-  baseProt = entry.baseProt || entry.prot || null;
+  baseCal = entryBaseValue(entry, 'cals', 'baseCal');
+  baseProt = entryBaseValue(entry, 'prot', 'baseProt');
   clearTimeout(aiTimer);
   Object.values(tabScreens).forEach(id => document.getElementById(id).classList.remove('active'));
   document.getElementById('s-form').classList.add('active');
@@ -875,8 +891,10 @@ async function logEntry() {
   btn.disabled = true; btn.textContent = '…Saving';
 
   const loggedAt = Date.now();
+  const savedBaseCal = qty ? cals / qty : cals;
+  const savedBaseProt = qty ? prot / qty : prot;
   if(saveFav) {
-    upsertFavorite({name, cals, prot, qty, unit, alcohol, baseCal, baseProt}, loggedAt);
+    upsertFavorite({name, cals, prot, qty, unit, alcohol, baseCal: savedBaseCal, baseProt: savedBaseProt}, loggedAt);
   } else {
     touchFavorite(name, loggedAt);
   }
@@ -884,7 +902,7 @@ async function logEntry() {
   renderFavs();
 
   const today = viewingDate || todayISO();
-  const nextEntry = {name,cals,prot,qty,unit,alcohol,date:today,loggedAt};
+  const nextEntry = {name,cals,prot,qty,unit,alcohol,baseCal:savedBaseCal,baseProt:savedBaseProt,date:today,loggedAt};
   const isEditing = editingIndex !== null && entries[editingIndex];
 
   if(isEditing) {
