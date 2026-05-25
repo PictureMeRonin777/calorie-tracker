@@ -169,6 +169,19 @@
   .goal-bar-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 6px; }
   .goal-bar-bg { height: 5px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
   .goal-bar-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .daily-alcohol {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .daily-alcohol strong {
+    color: var(--amber);
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+  }
 
   /* Entry rows */
   .section-label {
@@ -398,6 +411,10 @@
         <span id="goal-right"></span>
       </div>
       <div class="goal-bar-bg"><div class="goal-bar-fill" id="goal-bar" style="width:0%"></div></div>
+      <div class="daily-alcohol">
+        <span>Alcohol calories</span>
+        <strong id="day-alc-share">0 kcal · 0%</strong>
+      </div>
     </div>
     <div class="scroll-body" id="today-list">
       <div class="empty">No entries yet<br>Tap "Log food" to start tracking</div>
@@ -588,6 +605,7 @@ let aiTimer = null;
 let baseCal = null, baseProt = null;
 let prevTab = 'log';
 let viewingDate = null;
+let editingIndex = null;
 
 // ── Persistence ───────────────────────────────────────
 function save() {
@@ -740,8 +758,10 @@ function switchTab(tab) {
 
 // ── Form ──────────────────────────────────────────────
 function openForm(favIdx) {
+  editingIndex = null;
   const fav = favIdx !== null ? favorites[favIdx] : null;
   document.getElementById('form-title').textContent = fav ? 'Log from favorite' : 'Log food';
+  document.getElementById('log-btn').innerHTML = '✓ Log it';
   document.getElementById('fi-food').value = fav ? fav.name : '';
   document.getElementById('fi-cals').value = fav ? Math.round(fav.cals) : '';
   document.getElementById('fi-prot').value = fav ? fav.prot.toFixed(1) : '';
@@ -761,7 +781,9 @@ function openForm(favIdx) {
 function openEntry(i) {
   const entry = entries[i];
   if(!entry) return;
-  document.getElementById('form-title').textContent = 'Log again';
+  editingIndex = i;
+  document.getElementById('form-title').textContent = 'Edit entry';
+  document.getElementById('log-btn').innerHTML = '✓ Save changes';
   document.getElementById('fi-food').value = entry.name || '';
   document.getElementById('fi-cals').value = Math.round(entry.cals || 0);
   document.getElementById('fi-prot').value = (entry.prot || 0).toFixed(1);
@@ -779,6 +801,7 @@ function openEntry(i) {
 }
 
 function closeForm() {
+  editingIndex = null;
   document.getElementById('s-form').classList.remove('active');
   switchTab(prevTab||'log');
 }
@@ -861,21 +884,28 @@ async function logEntry() {
   renderFavs();
 
   const today = viewingDate || todayISO();
-  try {
-    await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:100,
-        mcp_servers:[{type:"url",url:"https://mcp.notion.com/mcp",name:"notion"}],
-        system:`Notion assistant. Create page in data source '${NOTION_DS}'. Properties: Food (title), Calories (number), Protein (number), Quantity (number), Date (ISO date). Reply: DONE`,
-        messages:[{role:"user",content:`Log: Food="${name}", Calories=${cals}, Protein=${prot}, Quantity=${qty}, Date=${today}`}]
-      })
-    });
-  } catch(e) {}
+  const nextEntry = {name,cals,prot,qty,unit,alcohol,date:today,loggedAt};
+  const isEditing = editingIndex !== null && entries[editingIndex];
 
-  entries.push({name,cals,prot,qty,unit,alcohol,date:today,loggedAt});
+  if(isEditing) {
+    entries[editingIndex] = {...entries[editingIndex], ...nextEntry, date: entries[editingIndex].date || today};
+  } else {
+    try {
+      await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:100,
+          mcp_servers:[{type:"url",url:"https://mcp.notion.com/mcp",name:"notion"}],
+          system:`Notion assistant. Create page in data source '${NOTION_DS}'. Properties: Food (title), Calories (number), Protein (number), Quantity (number), Date (ISO date). Reply: DONE`,
+          messages:[{role:"user",content:`Log: Food="${name}", Calories=${cals}, Protein=${prot}, Quantity=${qty}, Date=${today}`}]
+        })
+      });
+    } catch(e) {}
+    entries.push(nextEntry);
+  }
+  editingIndex = null;
   save(); renderLog();
   btn.disabled=false; btn.innerHTML='✓ Log it';
   closeForm();
@@ -888,8 +918,11 @@ function renderLog() {
   const te = entries.filter(e=>e.date===viewingDate);
   const totalCal = te.reduce((s,e)=>s+e.cals,0);
   const totalProt = te.reduce((s,e)=>s+e.prot,0);
+  const alcoholCal = te.filter(e=>e.alcohol).reduce((s,e)=>s+e.cals,0);
+  const alcoholPct = totalCal ? Math.round((alcoholCal/totalCal)*100) : 0;
   document.getElementById('t-cals').textContent = Math.round(totalCal);
   document.getElementById('t-prot').textContent = totalProt.toFixed(1)+'g';
+  document.getElementById('day-alc-share').textContent = `${Math.round(alcoholCal)} kcal · ${alcoholPct}%`;
   const pct = Math.min(100, Math.round((totalCal/goal)*100));
   const bar = document.getElementById('goal-bar');
   bar.style.width = pct+'%';
