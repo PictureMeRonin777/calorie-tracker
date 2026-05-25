@@ -397,12 +397,12 @@
       <div class="stat-card">
         <div class="stat-label">Calories</div>
         <div class="stat-val" id="t-cals">0</div>
-        <div class="stat-sub">kcal today</div>
+        <div class="stat-sub" id="cal-leeway">0 kcal remaining</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Protein</div>
         <div class="stat-val" id="t-prot">0g</div>
-        <div class="stat-sub">today</div>
+        <div class="stat-sub" id="prot-leeway">0g to target</div>
       </div>
     </div>
     <div class="goal-bar-wrap">
@@ -920,8 +920,16 @@ function renderLog() {
   const totalProt = te.reduce((s,e)=>s+e.prot,0);
   const alcoholCal = te.filter(e=>e.alcohol).reduce((s,e)=>s+e.cals,0);
   const alcoholPct = totalCal ? Math.round((alcoholCal/totalCal)*100) : 0;
+  const calDelta = Math.round(goal - totalCal);
+  const protDelta = pgoal - totalProt;
   document.getElementById('t-cals').textContent = Math.round(totalCal);
   document.getElementById('t-prot').textContent = totalProt.toFixed(1)+'g';
+  document.getElementById('cal-leeway').textContent = calDelta >= 0
+    ? `${calDelta} kcal remaining`
+    : `${Math.abs(calDelta)} kcal over`;
+  document.getElementById('prot-leeway').textContent = protDelta > 0
+    ? `${protDelta.toFixed(1)}g to target`
+    : `${Math.abs(protDelta).toFixed(1)}g over target`;
   document.getElementById('day-alc-share').textContent = `${Math.round(alcoholCal)} kcal · ${alcoholPct}%`;
   const pct = Math.min(100, Math.round((totalCal/goal)*100));
   const bar = document.getElementById('goal-bar');
